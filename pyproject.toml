@@ -1,0 +1,19 @@
+[project]
+name = "mazegen"
+version = "0.1.0"
+description = "Reusable maze generator with seeded, perfect and braided modes."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "*"
+mypy = "*"
+build = "*"
+pytest = "*"
+
+[tool.mypy]
+exclude = '^(\.?venv|build|dist|.*\.egg-info)/'
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"

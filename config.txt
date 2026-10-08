@@ -1,0 +1,10 @@
+# A-Maze-ing default configuration
+# Coordinates are x,y (column,row), starting at 0,0 in the top-left corner.
+# Optional: SEED=<integer> to reproduce a maze (random if missing).
+
+WIDTH=20
+HEIGHT=15
+ENTRY=0,0
+EXIT=19,14
+OUTPUT_FILE=maze.txt
+PERFECT=True

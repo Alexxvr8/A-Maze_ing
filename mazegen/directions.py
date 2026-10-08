@@ -15,19 +15,19 @@ DELTAS: Final[dict[int, tuple[int, int]]] = {
     NORTH: (0, -1),
     EAST: (1, 0),
     SOUTH: (0, 1),
-    WEST: (-1, 0)
+    WEST: (-1, 0),
 }
 
 OPPOSITE: Final[dict[int, int]] = {
     NORTH: SOUTH,
     EAST: WEST,
     SOUTH: NORTH,
-    WEST: EAST
+    WEST: EAST,
 }
 
 LETTERS: Final[dict[int, str]] = {
-    NORTH: 'N',
-    EAST: 'E',
-    SOUTH: 'S',
-    WEST: 'W'
+    NORTH: "N",
+    EAST: "E",
+    SOUTH: "S",
+    WEST: "W",
 }

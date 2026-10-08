@@ -1,0 +1,13 @@
+.venv/
+venv/
+
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+
+dist/
+build/
+*.egg-info/
+
+maze.txt
+*_out.txt

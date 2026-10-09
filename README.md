@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by alvicent, <login2>.*
+*This project has been created as part of the 42 curriculum by alvicent, joserome.*
 
 # A-Maze-ing
 

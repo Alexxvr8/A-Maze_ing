@@ -11,6 +11,11 @@ WEST: Final = 8
 
 ALL_DIRECTIONS: Final = (NORTH, EAST, SOUTH, WEST)
 
+_full = 0
+for _direction in ALL_DIRECTIONS:
+    _full |= _direction
+ALL_WALLS: Final = _full
+
 DELTAS: Final[dict[int, tuple[int, int]]] = {
     NORTH: (0, -1),
     EAST: (1, 0),

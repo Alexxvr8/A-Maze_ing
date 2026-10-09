@@ -70,7 +70,7 @@ One `KEY=VALUE` pair per line. Lines starting with `#` are ignored.
 | `ENTRY` | yes | Entry cell, as `x,y` | `ENTRY=0,0` |
 | `EXIT` | yes | Exit cell, as `x,y` | `EXIT=19,14` |
 | `OUTPUT_FILE` | yes | Output file name | `OUTPUT_FILE=maze.txt` |
-| `PERFECT` | yes | `True` or `False` (case-insensitive) | `PERFECT=True` |
+| `PERFECT` | yes | `true`/`yes`/`1` or `false`/`no`/`0` (case-insensitive) | `PERFECT=True` |
 | `SEED` | no | Integer seed. If missing, a random one is used and printed | `SEED=42` |
 
 Coordinates use `x` for the column and `y` for the row, starting at `0,0` in

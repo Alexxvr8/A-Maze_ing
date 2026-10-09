@@ -20,20 +20,24 @@
 |:--|:--|:--|
 | `mazegen/directions.py` | ✅ Terminado (A1) | Ale |
 | `mazegen/generator.py` | 🟡 `__init__` + validaciones + `_fill_grid` + `_open_wall` (A2–A3). Falta generar | Ale |
-| `app/config_parser.py` | 🟡 Funciona, pero **rompe `make lint`** y no sigue el contrato (ver sección 4) | joserome |
-| `mazegen/pattern42.py`, `mazegen/solver.py` | ⬜ Solo docstring | — |
+| `app/config_parser.py` | ✅ Ajustado al contrato por Ale en `fix/lint-and-dedupe` (joserome lo revisa, sección 4 paso 2) | joserome |
+| `mazegen/pattern42.py` | 🟡 Dibujo hecho, función a medias (rompe el lint). Ale la termina en `fix/lint-and-dedupe` | Ale |
+| `mazegen/solver.py` | ⬜ Solo docstring | — |
 | `app/writer.py`, `app/display.py` | ⬜ Solo docstring | — |
 | `a_maze_ing.py` | ⬜ Solo shebang + docstring | — |
 | `configs/` | ❌ No existe | — |
 
-**`make lint` en `main`: ❌ FALLA**
+**`make lint` en `main`: ❌ FALLA** (lo arregla Ale en `fix/lint-and-dedupe`)
 
 ```
 ./app/config_parser.py:100:13: E117 over-indented
+./mazegen/pattern42.py:12:1: E302 expected 2 blank lines, found 1
+./mazegen/pattern42.py:13:15: W292 no newline at end of file
+mazegen/pattern42.py:12: error: Missing return statement  [empty-body]
 ```
 
-`mypy --strict`: ✅ limpio. **Lo primero de la próxima sesión es dejar `main` en
-verde** (sección 4, paso 1).
+**Regla nueva:** nunca se mergea a `main` un PR con `make lint` en rojo ni
+con funciones a medias.
 
 ### Qué pasó (2026-10-09)
 
@@ -134,9 +138,15 @@ def parse_config(path: str) -> MazeConfig: ...
   `a_maze_ing.py`: lee + valida + devuelve `MazeConfig`. Por dentro puede usar
   `read_config` y `cast_config`.
 - Recibe la **ruta**. Leer `sys.argv` **no** es trabajo del parser: va en
-  `a_maze_ing.py`.
-- Valida el **formato** (claves, tipos, rangos, entrada ≠ salida). **No sabe
-  nada del 42** (eso lo valida el generador).
+  `a_maze_ing.py` (la antigua `get_path()` se ha quitado).
+- Valida **solo el formato del archivo**: que se pueda leer, claves
+  obligatorias / duplicadas / desconocidas / vacías, tipos (`int`, `x,y`,
+  `true`/`false`, `yes`/`no`, `1`/`0`) y `OUTPUT_FILE` no vacío.
+- **No valida valores** (tamaño positivo, entrada/salida dentro del
+  laberinto, entrada ≠ salida, 42): eso lo hace **solo** el generador, que lo
+  necesita igualmente por ser reutilizable. Así no se repite código y los
+  mensajes salen de un único sitio. `a_maze_ing.py` captura
+  `MazeGeneratorError` igual que `ConfigError`.
 - Nombre del campo: el parser usa `exit_` y el generador `exit`. Se queda así;
   `a_maze_ing.py` hace `MazeGenerator(..., exit=config.exit_, ...)`.
 
@@ -199,33 +209,38 @@ git status
 ```
 
 Si `git status` dice que tu `main` y el de GitHub han divergido
-(`have diverged`), **no hagas nada y avisa a Ale**. Si está limpio:
+(`have diverged`), **no hagas nada y avisa a Ale**. Si está limpio, crea la
+rama de tu primera tarea (paso 3):
 
 ```
-git switch -c fix/config-parser
+git switch -c feat/configs
 ```
 
-### Paso 1 — Dejar `make lint` en verde 🔴 urgente
+### Paso 1 — Comprobar que `main` está en verde
 
-- `app/config_parser.py`, línea 100: `return True` tiene 12 espacios de
-  sangría, debe tener 8 (E117).
-- Comprobar: `make lint` → sin errores.
+Después del `git pull`: `make lint` y `poetry run mypy . --strict` → sin
+errores. Si falla, avisar a Ale antes de seguir.
 
-### Paso 2 — Ajustar el parser al contrato y a las decisiones
+### Paso 2 — Revisar los cambios que hizo Ale en `app/config_parser.py`
 
-| # | Qué | Por qué |
-|:--|:--|:--|
-| 2.1 | `parse_bool` acepta `yes`/`no`/`1`/`0` | La decisión B6 es **solo `true`/`false` sin distinguir mayúsculas**. O se quitan esos casos, o se cambia la decisión aquí y en el README (hoy el README dice "True or False"). Decidir y apuntarlo en el registro |
-| 2.2 | Añadir `parse_config(path: str) -> MazeConfig` | Es la función del contrato. Llama a `read_config` y `cast_config` |
-| 2.3 | Sacar `get_path()` del parser | Leer `sys.argv` es cosa de `a_maze_ing.py`. El parser recibe la ruta |
-| 2.4 | Docstring de `get_path` roto | Son **dos** strings seguidas: la segunda no es docstring, es una línea que no hace nada. Si se mueve (2.3), arreglarlo allí |
-| 2.5 | `raise ConfigError(...)` dentro del `except` de `read_config` | Añadir `from e`, como ya haces en `parse_int` |
-| 2.6 | Bucle de claves obligatorias sobre un `set` | El orden de un `set` no es fijo: si faltan varias, el mensaje puede cambiar entre ejecuciones. Recorrer `sorted(REQUIRED_KEYS)` |
-| 2.7 | Línea `=5` da `Unknown key in config file: ` (vacío) | Detectar clave vacía con un mensaje propio |
-| 2.8 | `REQUIRED_KEYS`, `ALLOWED_KEYS` | Son constantes: añadir `Final` (como en `directions.py`) |
-| 2.9 | Docstrings | Estilo Google (B7): `Args:`, `Returns:`, `Raises:` en cada función |
+Para dejar `main` en verde y no repetir código, Ale ha tocado el parser en
+`fix/lint-and-dedupe`. **Léelo antes de seguir** (es tu archivo y tienes que
+poder defenderlo):
 
-Comprobar: `make lint` y `poetry run mypy . --strict` en verde.
+| Cambio | Por qué |
+|:--|:--|
+| Sangría de la línea 100 (E117) | Rompía `make lint` |
+| Quitadas las comprobaciones de tamaño, límites y entrada ≠ salida | Ya las hace el generador (sección 2.2). No volver a añadirlas |
+| Nueva `parse_config(path)` | Es la función pública del contrato |
+| Quitada `get_path()` | Leer `sys.argv` va en `a_maze_ing.py` (S1) |
+| `parse_bool` compara contra dos conjuntos (`TRUE_VALUES`, `FALSE_VALUES`) | Mismos valores que antes (true/false, yes/no, 1/0), sin seis `if` seguidos |
+| Clave vacía (`=5`) con error propio | Antes daba `Unknown key: ` vacío |
+| `raise ... from error` al leer el archivo | Conserva el error original |
+| Claves obligatorias en `sorted(...)` | Mensaje siempre igual si faltan varias |
+| Constantes con `Final` | Estilo B7 |
+| Docstrings estilo Google | Estilo B7 |
+
+Si no estás de acuerdo con algo, se habla y se apunta en el registro.
 
 ### Paso 3 — `configs/` con casos rotos
 
@@ -253,7 +268,7 @@ Apuntar la decisión en la tabla de la sección 5 y en el registro:
 - **Tamaño mínimo del laberinto** (el del 42 es 9×7, lo lleva Ale).
 - **`OUTPUT_FILE` no escribible**: error claro desde `a_maze_ing.py`.
 
-→ **PR `fix/config-parser` → `main`**, lo revisa Ale.
+→ **PR `feat/configs` → `main`**, lo revisa Ale.
 
 ### Paso 5 — `mazegen/solver.py` (rama nueva `feat/solver`)
 
@@ -277,9 +292,9 @@ Apuntar la decisión en la tabla de la sección 5 y en el registro:
 
 ## 5. Próxima sesión — Ale (línea A)
 
-- [ ] **A4** `pattern42.py`: dibujo como `Final` tuple de strings, medir con
-      `len`, `set()` si no cabe (9×7 mínimo), centrar con `//`, set por
-      comprensión → rama `feat/pattern42`
+- [ ] **A4** terminar `pattern_42_cells`: medir con `len`, `set()` si no
+      cabe (9×7 mínimo), centrar con `//`, set por comprensión → en
+      `fix/lint-and-dedupe`, junto con el E117 y la limpieza del parser
 - [ ] En `generator.py`: `self.pattern_cells = pattern_42_cells(...)` en el
       `__init__` + error si `entry`/`exit` están en el 42
 - [ ] **A5** backtracker con pila (`generate()`), sin entrar en el 42,
@@ -287,7 +302,7 @@ Apuntar la decisión en la tabla de la sección 5 y en el registro:
 - [ ] **A6** semilla aleatoria si `seed is None` (y guardarla) + `regenerate()`
 - [ ] **A7** autocomprobación: bordes cerrados, coherencia entre vecinas,
       celdas del 42 a `15`, misma semilla → misma rejilla
-- [ ] Revisar el PR `fix/config-parser` de joserome
+- [ ] `app/display.py`: docstring "terminal" → "window" (MLX)
 
 ### Punto de unificación S1
 
@@ -348,15 +363,16 @@ y=1  (0,1) (1,1) (2,1)
 |:--|:--|
 | Tamaño mínimo del laberinto | ⏳ (joserome, paso 4) |
 | Tamaño mínimo para el 42 | **9×7** (dibujo 7×5 + 1 de margen por lado). Si no cabe: se genera sin 42 y se avisa |
-| ENTRY o EXIT dentro del 42 | **error** (lo valida el generador) |
-| ENTRY == EXIT | **error** |
-| ENTRY / EXIT fuera de límites | **error** |
+| WIDTH / HEIGHT ≤ 0 | **error** (generador) |
+| ENTRY o EXIT dentro del 42 | **error** (generador) |
+| ENTRY == EXIT | **error** (generador) |
+| ENTRY / EXIT fuera de límites | **error** (generador) |
 | Clave obligatoria ausente | **error** |
 | Clave duplicada | **error** |
 | Clave desconocida | **error** |
-| Clave vacía (`=5`) | **error** |
+| Clave vacía (`=5`) | **error** (parser) |
 | Espacios alrededor del `=` | ⏳ se aceptan hoy (joserome, paso 4) |
-| Valores de PERFECT | `true` / `false` sin distinguir mayúsculas; otro valor = error (⚠️ el código acepta también yes/no/1/0, paso 2.1) |
+| Valores de PERFECT | `true`/`yes`/`1` → True · `false`/`no`/`0` → False, sin distinguir mayúsculas; otro valor = error |
 | SEED ausente | aleatoria y se **muestra** |
 | `OUTPUT_FILE` vacío | **error** |
 | `OUTPUT_FILE` no escribible | ⏳ error claro, sin traceback |
@@ -423,7 +439,7 @@ Plazo de entrega: **por decidir**.
 | 2026-10-09 | Rejilla `list[list[int]]`, bits N1 E2 S4 W8, `grid[y][x]` | ambos | Coincide con el formato de salida |
 | 2026-10-09 | Backtracker DFS con pila | ambos | Fácil de explicar, sin límite de recursión |
 | 2026-10-09 | Visualización con MiniLibX | ambos | `<motivo>` |
-| 2026-10-09 | Claves duplicadas/desconocidas = error; PERFECT sin mayúsculas | ambos | Detectar errores de escritura del config |
+| 2026-10-09 | Claves duplicadas/desconocidas = error | ambos | Detectar errores de escritura del config |
 | 2026-10-09 | SEED opcional; si falta, aleatoria y se muestra | ambos | Reproducibilidad |
 | 2026-10-09 | ENTRY/EXIT dentro del 42 = error | ambos | Config inválido, mensaje claro |
 | 2026-10-09 | Docstrings Google; licencia MIT | ambos | — |
@@ -434,6 +450,10 @@ Plazo de entrega: **por decidir**.
 | 2026-10-09 | 42 = dígitos 3×5, mínimo de laberinto 9×7 | Ale | 1 celda de margen para no aislar celdas |
 | 2026-10-09 | `MazeConfig.exit_` / `MazeGenerator(exit=...)` | ambos | Se mapea en `a_maze_ing.py` |
 | 2026-10-09 | Incidente: trabajo en `main` local → push rechazado; resuelto con rama + PR #3 | ambos | Nueva regla: nunca trabajar en `main` (sección 1) |
+| 2026-10-09 | El parser valida solo formato; los valores (tamaño, límites, entrada ≠ salida, 42) solo el generador | Ale (pendiente OK de joserome) | No repetir código; el generador debe validar igualmente por ser reutilizable |
+| 2026-10-09 | PERFECT acepta true/false, yes/no y 1/0 (sin distinguir mayúsculas) | ambos | Más tolerante con el usuario; sustituye a "solo true/false" |
+| 2026-10-09 | `get_path()` fuera del parser; nueva `parse_config()` | Ale (pendiente OK de joserome) | Cumplir el contrato |
+| 2026-10-09 | PR #4 entró en `main` con lint en rojo; se arregla en `fix/lint-and-dedupe` | Ale | Nueva regla: nunca mergear con lint en rojo |
 | | | | |
 
 ---

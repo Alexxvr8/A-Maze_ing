@@ -9,5 +9,6 @@ PATTERN_42: Final = ("#.#.###",
                      "..#.#..",
                      "..#.###")
 
+
 def pattern_42_cells(width: int, height: int) -> set[tuple[int, int]]:
     """    """

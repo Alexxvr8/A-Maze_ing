@@ -1,6 +1,9 @@
 """generator.py: MazeGenerator class for perfect and braided mazes."""
 
 
+from mazegen.directions import ALL_WALLS, DELTAS, OPPOSITE
+
+
 class MazeGeneratorError(ValueError):
     """Raised when the maze parameters are invalid."""
 
@@ -64,3 +67,29 @@ class MazeGenerator:
                 f"{name} {coords} is outside the maze: "
                 f"x must be 0-{self.width - 1}, y must be 0-{self.height - 1}"
             )
+
+    def _fill_grid(self) -> None:
+        """Reset the grid so every cell has all four walls closed."""
+        self.grid = [[ALL_WALLS] * self.width for _ in range(self.height)]
+
+    def _open_wall(self, cell: tuple[int, int], direction: int) -> None:
+        """Remove the wall between a cell and its neighbour.
+
+        Both sides are updated so the walls stay coherent.
+
+        Args:
+            cell: Cell as (x, y).
+            direction: Wall to open, one of the direction bits.
+
+        Raises:
+            MazeGeneratorError: If the neighbour is outside the maze.
+        """
+        x, y = cell
+        dx, dy = DELTAS[direction]
+        nx = x + dx
+        ny = y + dy
+
+        self._check_coord((nx, ny), "neighbour")
+
+        self.grid[y][x] &= ~direction
+        self.grid[ny][nx] &= ~OPPOSITE[direction]

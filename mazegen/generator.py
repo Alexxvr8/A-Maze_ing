@@ -2,6 +2,7 @@
 
 
 from mazegen.directions import ALL_WALLS, DELTAS, OPPOSITE
+from mazegen.pattern42 import pattern_42_cells
 
 
 class MazeGeneratorError(ValueError):
@@ -26,7 +27,7 @@ class MazeGenerator:
 
         Raises:
             MazeGeneratorError: If the size is not positive, or entry or
-                exit are out of bounds or equal.
+                exit are out of bounds, equal, or inside the "42" pattern.
         """
         if width <= 0:
             raise MazeGeneratorError(f"width must be positive, got {width}")
@@ -43,13 +44,18 @@ class MazeGenerator:
             raise MazeGeneratorError(
                 f"entry and exit must be different, both are {entry}"
             )
+
+        self.pattern_cells: set[tuple[int, int]] = pattern_42_cells(
+            width, height
+        )
+        self._check_outside_pattern(entry, "entry")
+        self._check_outside_pattern(exit, "exit")
         self.entry = entry
         self.exit = exit
 
         self.perfect = perfect
         self.seed = seed
         self.grid: list[list[int]] = []
-        self.pattern_cells: set[tuple[int, int]] = set()
 
     def _check_coord(self, coords: tuple[int, int], name: str) -> None:
         """Raise MazeGeneratorError if the cell is outside the maze.
@@ -66,6 +72,22 @@ class MazeGenerator:
             raise MazeGeneratorError(
                 f"{name} {coords} is outside the maze: "
                 f"x must be 0-{self.width - 1}, y must be 0-{self.height - 1}"
+            )
+
+    def _check_outside_pattern(self, coords: tuple[int, int],
+                               name: str) -> None:
+        """Raise MazeGeneratorError if the cell belongs to the "42" pattern.
+
+        Args:
+            coords: Cell to check, as (x, y).
+            name: Label used in the error message.
+
+        Raises:
+            MazeGeneratorError: If the cell is one of the pattern cells.
+        """
+        if coords in self.pattern_cells:
+            raise MazeGeneratorError(
+                f'{name} {coords} is inside the "42" pattern'
             )
 
     def _fill_grid(self) -> None:

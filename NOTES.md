@@ -12,39 +12,44 @@
 
 ---
 
-## 0. Estado del repo (última revisión: 2026-10-09)
+## 0. Estado del repo (última revisión: 2026-10-13)
 
-**En `main` ahora mismo:**
+**En `main` ahora mismo** (tras el PR #9):
 
 | Archivo | Estado | De quién |
 |:--|:--|:--|
 | `mazegen/directions.py` | ✅ Terminado (A1) | Ale |
-| `mazegen/generator.py` | 🟡 `__init__` + validaciones + `_fill_grid` + `_open_wall` (A2–A3). Falta generar | Ale |
-| `app/config_parser.py` | ✅ Ajustado al contrato por Ale en `fix/lint-and-dedupe` (joserome lo revisa, sección 4 paso 2) | joserome |
-| `mazegen/pattern42.py` | 🟡 Dibujo hecho, función a medias (rompe el lint). Ale la termina en `fix/lint-and-dedupe` | Ale |
-| `mazegen/solver.py` | ⬜ Solo docstring | — |
-| `app/writer.py`, `app/display.py` | ⬜ Solo docstring | — |
-| `a_maze_ing.py` | ⬜ Solo shebang + docstring | — |
-| `configs/` | ❌ No existe | — |
+| `mazegen/pattern42.py` | ✅ Terminado (A4) | Ale |
+| `mazegen/generator.py` | ✅ Validaciones, 42, backtracker `generate()`, `regenerate()` (A2–A6) | Ale |
+| `app/config_parser.py` | ✅ `parse_config()` según contrato | joserome (ajustado por Ale) |
+| `mazegen/solver.py` | ✅ `shortest_path()` con BFS | joserome |
+| `app/writer.py` | ⬜ Solo docstring → **siguiente de joserome** | joserome |
+| `app/display.py` | ⬜ Solo docstring (bloque 2, MLX) | joserome |
+| `a_maze_ing.py` | ⬜ Solo shebang + docstring → **S1, juntos** | ambos |
+| `configs/` | ❌ No existe | joserome |
+| `tests/` | ⬜ Vacío → Ale en `test/maze-checks` (A7) | Ale |
 
-**`make lint` en `main`: ❌ FALLA** (lo arregla Ale en `fix/lint-and-dedupe`)
+**`make lint` y `mypy --strict` en `main`: ✅ limpios.**
 
-```
-./app/config_parser.py:100:13: E117 over-indented
-./mazegen/pattern42.py:12:1: E302 expected 2 blank lines, found 1
-./mazegen/pattern42.py:13:15: W292 no newline at end of file
-mazegen/pattern42.py:12: error: Missing return statement  [empty-body]
-```
+### Comprobado el 2026-10-13
 
-**Regla nueva:** nunca se mergea a `main` un PR con `make lint` en rojo ni
-con funciones a medias.
+- Cadena completa a mano: `config.txt` → `parse_config` → `MazeGenerator`
+  → `generate()` → `shortest_path` ✅ **todo conecta sin tocar nada**.
+- Generador: 20×15 con semilla 42 → 280 celdas, 279 pasos (perfecto),
+  42 cerrado, misma semilla = mismo laberinto. 200×200 en 0,23 s.
+- Solver: 300 laberintos aleatorios → 0 fallos (camino válido y siempre el
+  más corto). Sin camino → `ValueError`.
+- PRs #8 (Ale) y #9 (joserome) sin conflictos: cada uno en su rama y en
+  sus archivos. ✅ El flujo de Git ya funciona.
 
-### Qué pasó (2026-10-09)
+### Historial de incidentes
 
-joserome trabajó directamente sobre su copia local de `main` mientras Ale
-mergeaba sus PRs. Los dos `main` se separaron y el push falló. Se resolvió
-moviendo el trabajo a la rama `feat/config-parse` y mergeando (PR #3). No se
-perdió nada. Para que no vuelva a pasar: **reglas de Git de la sección 1**.
+- **2026-10-09:** joserome trabajó en su `main` local mientras Ale
+  mergeaba → `main` divergió y el push falló. Resuelto con rama + PR #3.
+- **2026-10-09:** PR #4 entró con lint en rojo (`pattern42` a medias).
+  Resuelto en PR #6 y en el commit `pattern42`.
+- **2026-10-09 y 12:** dos commits de Ale directos a `main` sin PR
+  (`pattern42` y un commit hecho en `main` por error, movido a rama).
 
 ---
 
@@ -102,12 +107,12 @@ MazeGenerator(width: int, height: int,
 
 | Miembro | Tipo | Qué es | Estado |
 |:--|:--|:--|:--|
-| `__init__` | — | Valida y guarda. **No genera.** Lanza `MazeGeneratorError` si algo es inválido | ✅ (falta validar el 42) |
-| `generate()` | `-> None` | Construye el laberinto con `self.seed` | ⬜ A5 |
-| `regenerate()` | `-> None` | Semilla nueva + `generate()`. El display lo usa para "regenerar" | ⬜ A6 |
+| `__init__` | — | Valida y guarda. **No genera.** Lanza `MazeGeneratorError` si algo es inválido (incluida entrada/salida dentro del 42) | ✅ |
+| `generate()` | `-> None` | Construye el laberinto perfecto con `self.seed` (backtracker con pila) | ✅ |
+| `regenerate()` | `-> None` | Semilla nueva + `generate()`. El display lo usa para "regenerar" | ✅ |
 | `grid` | `list[list[int]]` | `grid[y][x]` con bits N1 E2 S4 W8. Vacía hasta `generate()` | ✅ |
-| `seed` | `int` | Semilla usada (si no venía, una aleatoria) | 🟡 A6 |
-| `pattern_cells` | `set[tuple[int, int]]` | Celdas del 42. **Vacío si no cabe** | ⬜ A4 |
+| `seed` | `int` | Semilla usada (si no venía, una aleatoria). Nunca `None` | ✅ |
+| `pattern_cells` | `set[tuple[int, int]]` | Celdas del 42. **Vacío si no cabe** | ✅ |
 | `width`, `height`, `entry`, `exit`, `perfect` | — | Los parámetros, públicos | ✅ |
 | `MazeGeneratorError` | `ValueError` | Excepción del paquete | ✅ |
 
@@ -200,119 +205,88 @@ explicar todo.
 
 ## 4. Próxima sesión — joserome (línea B) 👈
 
-### Paso 0 — Git (antes de tocar nada)
+Antes de empezar, siempre:
 
 ```
 git switch main
 git pull
-git status
+git switch -c <rama>
+git status          ← "On branch <rama>"
 ```
 
-Si `git status` dice que tu `main` y el de GitHub han divergido
-(`have diverged`), **no hagas nada y avisa a Ale**. Si está limpio, crea la
-rama de tu primera tarea (paso 3):
+### Paso 1 — `app/writer.py` (rama `feat/writer`) 🔴 bloquea S1
 
-```
-git switch -c feat/configs
-```
+- `write_maze(path, grid, entry, exit, solution) -> None` según el contrato
+  (sección 2.2).
+- Formato exacto del subject: una fila por línea en hex **minúscula**,
+  línea vacía, `x,y` de entrada, `x,y` de salida, camino. `\n` al final de
+  cada línea.
+- Si no puede escribir, deja salir el `OSError` (lo captura
+  `a_maze_ing.py`).
+- **Prueba:** con la rejilla del ejemplo del subject, la salida tiene que
+  ser idéntica byte a byte.
 
-### Paso 1 — Comprobar que `main` está en verde
-
-Después del `git pull`: `make lint` y `poetry run mypy . --strict` → sin
-errores. Si falla, avisar a Ale antes de seguir.
-
-### Paso 2 — Revisar los cambios que hizo Ale en `app/config_parser.py`
-
-Para dejar `main` en verde y no repetir código, Ale ha tocado el parser en
-`fix/lint-and-dedupe`. **Léelo antes de seguir** (es tu archivo y tienes que
-poder defenderlo):
-
-| Cambio | Por qué |
-|:--|:--|
-| Sangría de la línea 100 (E117) | Rompía `make lint` |
-| Quitadas las comprobaciones de tamaño, límites y entrada ≠ salida | Ya las hace el generador (sección 2.2). No volver a añadirlas |
-| Nueva `parse_config(path)` | Es la función pública del contrato |
-| Quitada `get_path()` | Leer `sys.argv` va en `a_maze_ing.py` (S1) |
-| `parse_bool` compara contra dos conjuntos (`TRUE_VALUES`, `FALSE_VALUES`) | Mismos valores que antes (true/false, yes/no, 1/0), sin seis `if` seguidos |
-| Clave vacía (`=5`) con error propio | Antes daba `Unknown key: ` vacío |
-| `raise ... from error` al leer el archivo | Conserva el error original |
-| Claves obligatorias en `sorted(...)` | Mensaje siempre igual si faltan varias |
-| Constantes con `Final` | Estilo B7 |
-| Docstrings estilo Google | Estilo B7 |
-
-Si no estás de acuerdo con algo, se habla y se apunta en el registro.
-
-### Paso 3 — `configs/` con casos rotos
+### Paso 2 — `configs/` con casos rotos (rama `feat/configs`)
 
 Un archivo por error, cada uno con **un solo** problema:
 `missing_key.txt`, `duplicate_key.txt`, `unknown_key.txt`, `width_not_int.txt`,
-`width_negative.txt`, `entry_out_of_bounds.txt`, `entry_equals_exit.txt`,
-`line_without_equal.txt`, `empty_key.txt`, `empty.txt`, `perfect_invalid.txt`,
-`coords_three_values.txt`.
+`empty_key.txt`, `line_without_equal.txt`, `empty.txt`, `perfect_invalid.txt`,
+`coords_three_values.txt` → deben dar `ConfigError`.
+Y los que pasan el parser pero rechaza el generador: `width_negative.txt`,
+`entry_out_of_bounds.txt`, `entry_equals_exit.txt`, `entry_in_42.txt` → deben
+dar `MazeGeneratorError`.
 
-Comprobar con cada uno:
+### Paso 3 — Cerrar decisiones pendientes de B6
 
-```
-poetry run python -c "from app.config_parser import parse_config; parse_config('configs/<archivo>')"
-```
+Apuntarlas en la tabla de la sección 6 y en el registro:
+- Espacios alrededor del `=`: el parser los acepta (`WIDTH = 20`). ¿Confirmado?
+- `OUTPUT_FILE` no escribible: error claro desde `a_maze_ing.py`.
 
-→ debe salir `ConfigError` con un mensaje distinto y claro. Y con `config.txt`,
-un `MazeConfig` correcto.
+### Paso 4 — Conseguir `maze_analyzer.py`
 
-### Paso 4 — Cerrar decisiones pendientes de B6
+De los adjuntos del proyecto en la intra. Hace falta para validar en S1.
+Decidir si se guarda en el repo o fuera.
 
-Apuntar la decisión en la tabla de la sección 5 y en el registro:
-
-- **Espacios alrededor del `=`**: el código ya los acepta (`WIDTH = 20`).
-  Confirmar que es lo que queremos.
-- **Tamaño mínimo del laberinto** (el del 42 es 9×7, lo lleva Ale).
-- **`OUTPUT_FILE` no escribible**: error claro desde `a_maze_ing.py`.
-
-→ **PR `feat/configs` → `main`**, lo revisa Ale.
-
-### Paso 5 — `mazegen/solver.py` (rama nueva `feat/solver`)
-
-- `shortest_path` según el contrato (2.2).
-- Probar con rejillas **escritas a mano**, sin esperar al generador:
-  2×2, 3×3 con un solo camino, y una con dos caminos de distinta longitud.
-
-### Paso 6 — `app/writer.py` (rama nueva `feat/writer`)
-
-- `write_maze` según el contrato (2.2).
-- Probar con el ejemplo del subject: la salida tiene que ser **idéntica byte a
-  byte**.
-
-### Pendiente de la línea B (después de lo anterior)
+### Pendiente de la línea B (bloque 2)
 
 - [ ] Probar que MLX abre una ventana vacía en el campus (30 min, **pronto**:
       es lo que más riesgo tiene)
-- [ ] Cambiar el docstring de `app/display.py` ("terminal" → "window")
+- [ ] `app/display.py`: display MLX con regenerar, mostrar/ocultar camino y
+      colores
 
----
+### Detalles menores en `solver.py` (cuando se vuelva a tocar)
+
+- El mensaje de error acaba en `.`; los del generador no.
+- `(dx, dy) = DELTAS[...]`: los paréntesis sobran.
 
 ## 5. Próxima sesión — Ale (línea A)
 
-- [ ] **A4** terminar `pattern_42_cells`: medir con `len`, `set()` si no
-      cabe (9×7 mínimo), centrar con `//`, set por comprensión → en
-      `fix/lint-and-dedupe`, junto con el E117 y la limpieza del parser
-- [ ] En `generator.py`: `self.pattern_cells = pattern_42_cells(...)` en el
-      `__init__` + error si `entry`/`exit` están en el 42
-- [ ] **A5** backtracker con pila (`generate()`), sin entrar en el 42,
-      con `random.Random(seed)` → rama `feat/backtracker`
-- [ ] **A6** semilla aleatoria si `seed is None` (y guardarla) + `regenerate()`
-- [ ] **A7** autocomprobación: bordes cerrados, coherencia entre vecinas,
-      celdas del 42 a `15`, misma semilla → misma rejilla
-- [ ] `app/display.py`: docstring "terminal" → "window" (MLX)
+- [x] **A1** `directions.py`
+- [x] **A2** `__init__` con validaciones y `MazeGeneratorError`
+- [x] **A3** `_fill_grid` y `_open_wall`
+- [x] **A4** `pattern42.py` + entrada/salida fuera del 42
+- [x] **A5** backtracker `generate()` (con `_inside`, `_neighbours`,
+      `_unvisited_neighbours`)
+- [x] **A6** semilla aleatoria y `regenerate()`
+- [ ] **A7** tests con pytest en `tests/` (rama `test/maze-checks`):
+      bordes cerrados, coherencia entre vecinas, 42 a 15, laberinto perfecto
+      (celdas − 1 pasos), misma semilla = mismo laberinto
+- [ ] Revisar el PR de `writer.py` de joserome
 
-### Punto de unificación S1
+### Punto de unificación S1 (juntos, cuando esté `writer.py`)
 
-Cuando A5 y los pasos 1–6 de joserome estén en `main`:
-juntos escribimos `a_maze_ing.py` (2.3) y comprobamos:
-`make run` → `maze.txt` con el 42 · `maze_analyzer.py` dice coherente y
-perfecto · todos los `configs/` dan error claro · misma `SEED` → mismo
-`maze.txt` · `make lint` limpio.
-
----
+1. Escribir `a_maze_ing.py` (sección 2.3): `sys.argv` → `parse_config` →
+   `MazeGenerator` → `generate()` → `shortest_path` → `write_maze`.
+   Captura `ConfigError`, `MazeGeneratorError` y `OSError` sin traceback.
+   Avisa si el 42 no cabe. Muestra la semilla si no venía en el config.
+2. Comprobar:
+   - `make run` → `maze.txt` con el 42.
+   - `maze_analyzer.py maze.txt` → coherente y perfecto.
+   - Todos los `configs/` dan un error claro, sin traceback.
+   - Misma `SEED` → mismo `maze.txt`.
+   - `make lint` limpio.
+3. Planificar el bloque 2: Ale → modo Pac-Man (`perfect=False`);
+   joserome → display MLX.
 
 ## 6. Decisiones técnicas
 
@@ -403,7 +377,7 @@ Plazo de entrega: **por decidir**.
 | Fase | Prevista | Real | Notas |
 |:--|:--|:--|:--|
 | 0 — Acuerdos y entorno | | 2026-10-09 | |
-| 1 — Núcleo mínimo (hasta S1) | | | En curso |
+| 1 — Núcleo mínimo (hasta S1) | | | En curso: generador, parser y solver listos (2026-10-13); faltan writer y `a_maze_ing.py` |
 | 2 — 42 + solver + display | | | |
 | 3 — Modo Pac-Man | | | |
 | 4 — Interacción | | | |
@@ -415,6 +389,7 @@ Plazo de entrega: **por decidir**.
 - [x] **S0** — contrato y repo funcionando → nos separamos
 - [ ] **S1** — generador perfecto + parser + solver + writer integrados en
       `a_maze_ing.py`, `maze_analyzer.py` OK
+      (2026-10-13: parser → generador → solver ya conectan; falta writer)
 - [ ] **S2** — 42 + Pac-Man + display MLX con interacción
 - [ ] **S3** — paquete `.whl`, LICENSE, README, `lint-strict`, ensayo de defensa
 
@@ -454,6 +429,12 @@ Plazo de entrega: **por decidir**.
 | 2026-10-09 | PERFECT acepta true/false, yes/no y 1/0 (sin distinguir mayúsculas) | ambos | Más tolerante con el usuario; sustituye a "solo true/false" |
 | 2026-10-09 | `get_path()` fuera del parser; nueva `parse_config()` | Ale (pendiente OK de joserome) | Cumplir el contrato |
 | 2026-10-09 | PR #4 entró en `main` con lint en rojo; se arregla en `fix/lint-and-dedupe` | Ale | Nueva regla: nunca mergear con lint en rojo |
+| 2026-10-12 | `pattern42`: constantes `PATTERN_WIDTH/HEIGHT` y `MIN_WIDTH/HEIGHT` calculadas del dibujo | Ale | Cambiar el dibujo recalcula todo |
+| 2026-10-12 | `pattern_cells` se calcula en el `__init__` | Ale | Hace falta para validar entrada/salida |
+| 2026-10-13 | `_inside()` reutilizado por `_check_coord` y `_neighbours` | Ale | La condición de límites vive en un solo sitio |
+| 2026-10-13 | `generate()` empieza en `entry` y usa `random.Random(self.seed)` propio | Ale | Reproducible sin tocar el `random` global |
+| 2026-10-13 | Semilla aleatoria con `random.randrange(2**32)` si `seed is None` | Ale | `seed` siempre es `int`; `seed=0` válido |
+| 2026-10-13 | Solver BFS con `deque` y diccionario `previous` | joserome | Camino más corto garantizado |
 | | | | |
 
 ---

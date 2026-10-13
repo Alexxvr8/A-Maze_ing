@@ -1,0 +1,9 @@
+# Invalid: COLOUR is not a recognised key
+
+WIDTH=20
+HEIGHT=15
+ENTRY=0,0
+EXIT=19,14
+COLOUR=red
+OUTPUT_FILE=maze.txt
+PERFECT=True

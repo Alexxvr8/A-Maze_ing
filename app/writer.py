@@ -28,7 +28,7 @@ def _convert_to_hex(n: int) -> str:
 
 
 def write_maze(
-        path: str, 
+        path: str,
         grid: list[list[int]],
         entry: tuple[int, int],
         exit: tuple[int, int],

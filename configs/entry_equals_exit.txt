@@ -1,0 +1,8 @@
+# Valid format, invalid value: ENTRY and EXIT are the same cell
+
+WIDTH=20
+HEIGHT=15
+ENTRY=19,14
+EXIT=19,14
+OUTPUT_FILE=maze.txt
+PERFECT=True

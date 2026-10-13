@@ -1,0 +1,8 @@
+# Invalid: a line with a value but an empty key
+
+WIDTH=20
+=15
+ENTRY=0,0
+EXIT=19,14
+OUTPUT_FILE=maze.txt
+PERFECT=True

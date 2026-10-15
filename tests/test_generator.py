@@ -22,9 +22,11 @@ INVALID_PARAMS = [
     (20, 15, (6, 5), (19, 14)),
     (20, 15, (0, 0), (6, 5)),
 ]
+PATTERN_DEAD_ENDS = 3
 
 
-def _build(seed: int, width: int = 20, height: int = 15) -> MazeGenerator:
+def _build(seed: int, width: int = 20, height: int = 15,
+           perfect: bool = True) -> MazeGenerator:
     """Create and generate a maze with fixed entry and exit corners."""
     maze = MazeGenerator(
         width=width,
@@ -32,6 +34,7 @@ def _build(seed: int, width: int = 20, height: int = 15) -> MazeGenerator:
         entry=(0, 0),
         exit=(width - 1, height - 1),
         seed=seed,
+        perfect=perfect,
     )
     maze.generate()
     return maze
@@ -57,6 +60,58 @@ def _reachable(maze: MazeGenerator) -> set[tuple[int, int]]:
                 queue.append(neighbour)
 
     return visited
+
+
+def _count_passages(maze: MazeGenerator) -> int:
+    """Return how many open walls join two cells of the maze."""
+    grid = maze.grid
+    passages = 0
+
+    for y in range(maze.height):
+        for x in range(maze.width):
+            if not (grid[y][x] & EAST):
+                passages += 1
+            if not (grid[y][x] & SOUTH):
+                passages += 1
+    return passages
+
+
+def _count_dead_ends(maze: MazeGenerator) -> int:
+    """Return how many cells outside the "42" have exactly one exit."""
+    grid = maze.grid
+    dead_ends = 0
+
+    for y in range(maze.height):
+        for x in range(maze.width):
+            if (x, y) in maze.pattern_cells:
+                continue
+            walls = 0
+            for direction in ALL_DIRECTIONS:
+                if grid[y][x] & direction:
+                    walls += 1
+            if walls == 3:
+                dead_ends += 1
+    return dead_ends
+
+
+def _has_open_area(maze: MazeGenerator) -> bool:
+    """Return whether any 3x3 block of the maze has no inner walls."""
+    grid = maze.grid
+
+    for top in range(maze.height - 2):
+        for left in range(maze.width - 2):
+            walls = 0
+            for y in range(top, top + 3):
+                for x in range(left, left + 3):
+                    if x < left + 2 and grid[y][x] & EAST:
+                        walls += 1
+                    if y < top + 2 and grid[y][x] & SOUTH:
+                        walls += 1
+
+            if walls == 0:
+                return True
+
+    return False
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -124,18 +179,9 @@ def test_all_cells_reachable(seed: int) -> None:
 def test_maze_is_perfect(seed: int) -> None:
     """A perfect maze has exactly one path between any two cells."""
     maze = _build(seed)
-    grid = maze.grid
     reached = _reachable(maze)
 
-    passages = 0
-    for y in range(maze.height):
-        for x in range(maze.width):
-            if not (grid[y][x] & EAST):
-                passages += 1
-            if not (grid[y][x] & SOUTH):
-                passages += 1
-
-    assert passages == len(reached) - 1
+    assert _count_passages(maze) == len(reached) - 1
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -169,3 +215,70 @@ def test_invalid_params_raise(
     """Invalid sizes or entry/exit cells raise MazeGeneratorError."""
     with pytest.raises(MazeGeneratorError):
         MazeGenerator(width=width, height=height, entry=entry, exit=exit_)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_pacman_all_cells_reachable(seed: int) -> None:
+    """Every cell outside the "42" is reachable in the Pac-Man mode."""
+    maze = _build(seed=seed, perfect=False)
+    reached = _reachable(maze)
+    expected = maze.width * maze.height - len(maze.pattern_cells)
+
+    assert len(reached) == expected
+    assert maze.exit in reached
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_pacman_has_loops(seed: int) -> None:
+    """The Pac-Man mode has at least two independent loops."""
+    maze = _build(seed=seed, perfect=False)
+    reached = _reachable(maze)
+
+    assert _count_passages(maze) >= (len(reached) - 1) + 2
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_pacman_dead_ends(seed: int) -> None:
+    """Only the dead ends forced by the "42" drawing are left."""
+    maze = _build(seed=seed, perfect=False)
+    no_pattern = _build(seed=seed, width=5, height=5, perfect=False)
+
+    assert _count_dead_ends(maze) <= PATTERN_DEAD_ENDS
+    assert _count_dead_ends(no_pattern) == 0
+
+
+@pytest.mark.parametrize("perfect", [True, False])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_no_open_area(seed: int, perfect: bool) -> None:
+    """No 3x3 block is fully open, in both generation modes."""
+    maze = _build(seed, perfect=perfect)
+    assert not _has_open_area(maze)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_pacman_corners_and_centre(seed: int) -> None:
+    """The four corners and the centre are reachable corridors."""
+    maze = _build(seed, perfect=False)
+    reached = _reachable(maze)
+
+    corners_and_centre: list[tuple[int, int]] = [
+        (0, 0),
+        (maze.width - 1, 0),
+        (0, maze.height - 1),
+        (maze.width - 1, maze.height - 1),
+        ((maze.width - 1) // 2, (maze.height - 1) // 2),
+    ]
+
+    for cell in corners_and_centre:
+        assert cell in reached
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_pacman_same_seed_same_maze(seed: int) -> None:
+    """The same seed always builds the same Pac-Man maze."""
+    first = _build(seed, perfect=False)
+    second = _build(seed, perfect=False)
+    other = _build(seed + 1, perfect=False)
+
+    assert first.grid == second.grid
+    assert first.grid != other.grid

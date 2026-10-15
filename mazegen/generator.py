@@ -3,7 +3,14 @@
 
 import random
 
-from mazegen.directions import ALL_DIRECTIONS, ALL_WALLS, DELTAS, OPPOSITE
+from mazegen.directions import (
+    ALL_DIRECTIONS,
+    ALL_WALLS,
+    DELTAS,
+    EAST,
+    OPPOSITE,
+    SOUTH,
+)
 from mazegen.pattern42 import pattern_42_cells
 
 
@@ -58,6 +65,11 @@ class MazeGenerator:
         self.perfect = perfect
         self.seed = random.randrange(2**32) if seed is None else seed
         self.grid: list[list[int]] = []
+
+    def _inside(self, cell: tuple[int, int]) -> bool:
+        """Return whether the cell is inside the maze."""
+        x, y = cell
+        return 0 <= x < self.width and 0 <= y < self.height
 
     def _check_coord(self, cell: tuple[int, int], name: str) -> None:
         """Raise MazeGeneratorError if the cell is outside the maze.
@@ -117,10 +129,58 @@ class MazeGenerator:
         self.grid[y][x] &= ~direction
         self.grid[ny][nx] &= ~OPPOSITE[direction]
 
-    def _inside(self, cell: tuple[int, int]) -> bool:
-        """Return whether the cell is inside the maze."""
+    def _close_wall(self, cell: tuple[int, int], direction: int) -> None:
+        """Close the wall between a cell and its neighbour.
+
+        Both sides are updated so the walls stay coherent. It undoes
+        _open_wall.
+
+        Args:
+            cell: Cell as (x, y).
+            direction: Wall to close, one of the direction bits.
+
+        Raises:
+            MazeGeneratorError: If the neighbour is outside the maze.
+        """
         x, y = cell
-        return 0 <= x < self.width and 0 <= y < self.height
+        dx, dy = DELTAS[direction]
+        nx = x + dx
+        ny = y + dy
+
+        self._check_coord((nx, ny), "neighbour")
+
+        self.grid[y][x] |= direction
+        self.grid[ny][nx] |= OPPOSITE[direction]
+
+    def _count_walls(self, cell: tuple[int, int]) -> int:
+        """Return how many of the four walls of a cell are closed.
+
+        Args:
+            cell: Cell as (x, y).
+
+        Returns:
+            Number of closed walls, from 0 to 4.
+        """
+        x, y = cell
+        walls = 0
+        for direction in ALL_DIRECTIONS:
+            if self.grid[y][x] & direction:
+                walls += 1
+        return walls
+
+    def _is_dead_end(self, cell: tuple[int, int]) -> bool:
+        """Return whether a cell is a dead end.
+
+        A dead end has exactly three closed walls, so it has a single exit.
+        Cells of the "42" pattern are never dead ends.
+
+        Args:
+            cell: Cell as (x, y).
+
+        Returns:
+            True if the cell is outside the "42" and has one exit.
+        """
+        return cell not in self.pattern_cells and self._count_walls(cell) == 3
 
     def _neighbours(
         self, cell: tuple[int, int]
@@ -164,20 +224,17 @@ class MazeGenerator:
                 free.append((direction, neighbour))
         return free
 
-    def generate(self) -> None:
-        """Build a perfect maze with a randomised depth-first search.
+    def _backtracker(self, rng: random.Random) -> None:
+        """Carve a perfect maze from the entry with a randomised DFS.
 
-        Starting from the entry, the walk opens a wall to a random
-        unvisited neighbour, and backtracks when it reaches a dead end. A
-        stack replaces recursion so large mazes do not hit Python's
-        recursion limit. Cells of the "42" pattern are never visited, so
-        they keep all four walls.
+        The walk opens a wall to a random unvisited neighbour and backtracks
+        when it gets stuck. A stack replaces recursion so large mazes do not
+        hit Python's recursion limit.
 
-        The same seed always produces the same maze.
+        Args:
+            rng: Random generator seeded with self.seed, shared with the
+                rest of the generation so the maze stays reproducible.
         """
-        rng = random.Random(self.seed)
-        self._fill_grid()
-
         visited: set[tuple[int, int]] = {self.entry}
         stack: list[tuple[int, int]] = [self.entry]
 
@@ -194,6 +251,114 @@ class MazeGenerator:
 
             visited.add(next_cell)
             stack.append(next_cell)
+
+    def _block_is_open(self, left: int, top: int) -> bool:
+        """Return whether the 3x3 block at (left, top) has no inner walls.
+
+        A block that does not fit inside the maze is never open.
+
+        Args:
+            left: Column of the top-left cell of the block.
+            top: Row of the top-left cell of the block.
+
+        Returns:
+            True if all twelve inner walls of the block are open.
+        """
+        if (left < 0 or top < 0
+                or left + 2 >= self.width or top + 2 >= self.height):
+            return False
+
+        for y in range(top, top + 3):
+            for x in range(left, left + 3):
+                if x < left + 2 and self.grid[y][x] & EAST:
+                    return False
+                if y < top + 2 and self.grid[y][x] & SOUTH:
+                    return False
+
+        return True
+
+    def _touches_open_block(self, cell: tuple[int, int]) -> bool:
+        """Return whether any 3x3 block containing the cell is fully open.
+
+        Args:
+            cell: Cell as (x, y).
+
+        Returns:
+            True if the cell belongs to at least one open 3x3 block.
+        """
+        x, y = cell
+        for left in range(x - 2, x + 1):
+            for top in range(y - 2, y + 1):
+                if self._block_is_open(left, top):
+                    return True
+        return False
+
+    def _remove_dead_end(
+        self, cell: tuple[int, int], rng: random.Random
+    ) -> None:
+        """Open one wall of a dead end without creating a 3x3 open area.
+
+        Neighbours that are dead ends too are tried first, so one opening
+        can fix two dead ends. A wall that would create a 3x3 open area is
+        closed again and the next option is tried.
+
+        Args:
+            cell: Dead-end cell as (x, y).
+            rng: Random generator shared with the rest of the generation.
+        """
+        x, y = cell
+        options: list[tuple[int, tuple[int, int]]] = []
+        for direction, neighbour in self._neighbours(cell):
+            if self.grid[y][x] & direction:
+                options.append((direction, neighbour))
+
+        rng.shuffle(options)
+        options.sort(key=lambda option: not self._is_dead_end(option[1]))
+
+        for direction, neighbour in options:
+            self._open_wall(cell, direction)
+            if (self._touches_open_block(cell)
+                    or self._touches_open_block(neighbour)):
+                self._close_wall(cell, direction)
+                continue
+            return
+
+    def _braid(self, rng: random.Random) -> None:
+        """Remove dead ends to add loops for the non-perfect mode.
+
+        Cells are visited in a random order so loops are spread over the
+        whole maze. A cell is only fixed if it is still a dead end when its
+        turn comes, since fixing a neighbour may already have fixed it.
+
+        Args:
+            rng: Random generator shared with the rest of the generation.
+        """
+        cells: list[tuple[int, int]] = []
+        for y in range(self.height):
+            for x in range(self.width):
+                cells.append((x, y))
+
+        rng.shuffle(cells)
+
+        for cell in cells:
+            if self._is_dead_end(cell):
+                self._remove_dead_end(cell, rng)
+
+    def generate(self) -> None:
+        """Build the maze with the current seed.
+
+        The grid is reset, a perfect maze is carved with the backtracker,
+        and if the maze is not perfect, dead ends are removed to add loops.
+        Cells of the "42" pattern always keep their four walls. The same
+        seed always produces the same maze.
+        """
+        rng = random.Random(self.seed)
+        self._fill_grid()
+
+        self._backtracker(rng)
+
+        if not self.perfect:
+            self._braid(rng)
 
     def regenerate(self) -> None:
         """Pick a new random seed and build a new maze with it."""

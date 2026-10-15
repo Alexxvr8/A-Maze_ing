@@ -4,7 +4,7 @@ RUN     = poetry run
 MYPY_FLAGS = --warn-return-any --warn-unused-ignores --ignore-missing-imports \
              --disallow-untyped-defs --check-untyped-defs
 
-.PHONY: install run debug clean lint lint-strict
+.PHONY: install run debug clean lint lint-strict test
 
 install:
 	@if ! command -v poetry > /dev/null; then \
@@ -31,3 +31,6 @@ lint:
 lint-strict:
 	$(RUN) flake8 .
 	$(RUN) mypy . --strict
+
+test:
+	$(RUN) python -m pytest -v

@@ -94,6 +94,26 @@ def _count_dead_ends(maze: MazeGenerator) -> int:
     return dead_ends
 
 
+def _has_open_area(maze: MazeGenerator) -> bool:
+    """Return whether any 3x3 block of the maze has no inner walls."""
+    grid = maze.grid
+
+    for top in range(maze.height - 2):
+        for left in range(maze.width - 2):
+            walls = 0
+            for y in range(top, top + 3):
+                for x in range(left, left + 3):
+                    if x < left + 2 and grid[y][x] & EAST:
+                        walls += 1
+                    if y < top + 2 and grid[y][x] & SOUTH:
+                        walls += 1
+
+            if walls == 0:
+                return True
+
+    return False
+
+
 @pytest.mark.parametrize("seed", SEEDS)
 def test_border_is_closed(seed: int) -> None:
     """Every cell on the outer border has its outer wall closed."""
@@ -225,3 +245,40 @@ def test_pacman_dead_ends(seed: int) -> None:
 
     assert _count_dead_ends(maze) <= PATTERN_DEAD_ENDS
     assert _count_dead_ends(no_pattern) == 0
+
+
+@pytest.mark.parametrize("perfect", [True, False])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_no_open_area(seed: int, perfect: bool) -> None:
+    """No 3x3 block is fully open, in both generation modes."""
+    maze = _build(seed, perfect=perfect)
+    assert not _has_open_area(maze)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_pacman_corners_and_centre(seed: int) -> None:
+    """The four corners and the centre are reachable corridors."""
+    maze = _build(seed, perfect=False)
+    reached = _reachable(maze)
+
+    corners_and_centre: list[tuple[int, int]] = [
+        (0, 0),
+        (maze.width - 1, 0),
+        (0, maze.height - 1),
+        (maze.width - 1, maze.height - 1),
+        ((maze.width - 1) // 2, (maze.height - 1) // 2),
+    ]
+
+    for cell in corners_and_centre:
+        assert cell in reached
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_pacman_same_seed_same_maze(seed: int) -> None:
+    """The same seed always builds the same Pac-Man maze."""
+    first = _build(seed, perfect=False)
+    second = _build(seed, perfect=False)
+    other = _build(seed + 1, perfect=False)
+
+    assert first.grid == second.grid
+    assert first.grid != other.grid

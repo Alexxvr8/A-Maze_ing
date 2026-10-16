@@ -13,26 +13,26 @@
 
 ---
 
-## 0. Estado del repo (última revisión: 2026-10-16)
+## 0. Estado del repo (última revisión: 2026-10-16, 04:00)
 
-**En `main` ahora mismo** (tras el PR #15):
+**En `main` ahora mismo** (tras el PR #17; Kruskal en el PR de `feat/kruskal`):
 
 | Archivo | Estado | De quién |
 |:--|:--|:--|
 | `mazegen/directions.py` | ✅ Terminado | Ale |
 | `mazegen/pattern42.py` | ✅ Terminado | Ale |
-| `mazegen/generator.py` | ✅ Perfecto (backtracker) + Pac-Man (trenzado) | Ale |
+| `mazegen/generator.py` | ✅ Backtracker + Kruskal + Pac-Man (trenzado, ≥ 2 bucles, mínimo 3×3) | Ale |
 | `mazegen/solver.py` | ✅ `shortest_path()` con BFS | joserome |
 | `mazegen/__init__.py` | ✅ API pública con `__all__` | Ale |
 | `app/config_parser.py` | ✅ `parse_config()` según contrato | joserome (ajustado por Ale) |
 | `app/writer.py` | ✅ Formato del subject (validado con `maze_analyzer.py`) | joserome |
 | `app/display.py` | 🟡 MLX hecho: muros, entrada, salida, 42, camino, teclas R/P/C/ESC. **Rompe el lint** y aún sin probar en pantalla | joserome |
 | `configs/` | ✅ 12 configs con errores | joserome |
-| `tests/test_generator.py` | ✅ 76 tests (perfecto + Pac-Man) | Ale |
+| `tests/test_generator.py` | ✅ 165 tests (los dos algoritmos × perfecto y Pac-Man) | Ale |
 | `a_maze_ing.py` | ⬜ Solo shebang + docstring → **S1, juntos, lo más urgente** | ambos |
 
 **Calidad en `main`:**
-- pytest: ✅ 76 passed
+- pytest: ✅ 165 passed
 - `make lint`: ❌ **falla por `app/display.py`** (2 de flake8 + 1 de mypy, ver
   sección 4, paso 1)
 - `make lint-strict`: ❌ además `Cannot find module "mlx"`
@@ -49,7 +49,7 @@ semillas), generados con generador + solver + writer:
   analizador los cuenta como **"enclosed by the '42' (tolerated)"** → **no hay
   que rediseñar el 42.**
 
-### ⚠️ Fallo encontrado el 2026-10-16 (Ale, tarea A10)
+### ✅ Fallo resuelto el 2026-10-16 (A10, PR #17)
 
 En laberintos **pequeños** el modo Pac-Man a veces queda con **0 callejones
 pero 1 solo bucle** (un anillo), y el subject pide al menos 2.
@@ -62,6 +62,10 @@ pero 1 solo bucle** (un anillo), y el subject pide al menos 2.
 
 Causa: el trenzado solo quita callejones, no garantiza bucles. Los tests no lo
 vieron porque `test_pacman_has_loops` solo prueba 20×15.
+
+**Solución:** `_ensure_loops()` abre muros extra (sin zonas 3×3) hasta tener
+2 bucles, y `PERFECT=False` exige mínimo 3×3. Comprobado con 20 000
+laberintos de 3×3 a 12×12: 0 fallos. Los laberintos de 20×15 no cambian.
 
 ### Historial de incidentes
 
@@ -129,13 +133,14 @@ al otro.
 MazeGenerator(width: int, height: int,
               entry: tuple[int, int], exit: tuple[int, int],
               perfect: bool = True, seed: int | None = None,
-              algorithm: str = "backtracker")        ← algorithm: PENDIENTE (A11)
+              algorithm: str = "backtracker")
 ```
 
 | Miembro | Tipo | Qué es | Estado |
 |:--|:--|:--|:--|
 | `__init__` | — | Valida y guarda. **No genera.** Lanza `MazeGeneratorError` si algo es inválido | ✅ |
-| `generate()` | `-> None` | Construye con `self.seed`: perfecto con el algoritmo elegido y, si `perfect` es `False`, trenzado (0 callejones reales, ≥ 2 bucles, sin zonas 3×3) | ✅ (falta A10 y A11) |
+| `generate()` | `-> None` | Construye con `self.seed`: perfecto con el algoritmo elegido y, si `perfect` es `False`, trenzado (0 callejones reales, ≥ 2 bucles, sin zonas 3×3) | ✅ |
+| `algorithm` | `str` | `"backtracker"` o `"kruskal"` (constante `ALGORITHMS`). Otro valor → `MazeGeneratorError` | ✅ |
 | `regenerate()` | `-> None` | Semilla nueva + `generate()` | ✅ |
 | `grid` | `list[list[int]]` | `grid[y][x]` con bits N1 E2 S4 W8. Vacía hasta `generate()` | ✅ |
 | `seed` | `int` | Semilla usada. Nunca `None` | ✅ |
@@ -183,9 +188,11 @@ def parse_config(path: str) -> MazeConfig: ...
 - **No valida valores** (tamaño, límites, entrada ≠ salida, 42, tamaño mínimo
   del Pac-Man): eso lo hace **solo** el generador.
 - `exit_` en el parser, `exit` en el generador; se mapea en `a_maze_ing.py`.
-- **`ALGORITHM`** (decidido 2026-10-16): opcional, por defecto
-  `"backtracker"`; acepta `backtracker` o `kruskal` sin distinguir mayúsculas
-  y lo devuelve en minúscula. Otro valor → `ConfigError`.
+- **`ALGORITHM`** (corregido 2026-10-16): opcional. El parser la lee, la
+  pasa a minúscula y, si falta, pone `"backtracker"`. **No** comprueba si el
+  algoritmo existe: eso lo hace **solo el generador** (`MazeGeneratorError`),
+  que es quien tiene la lista `ALGORITHMS`. Misma regla que con `ENTRY`:
+  formato en el parser, valores en el generador.
 
 **`mazegen/solver.py`:** `shortest_path(grid, entry, exit) -> str`. BFS con
 `deque`, devuelve letras (`"ESSEN"`), `ValueError` si no hay camino. No
@@ -260,7 +267,10 @@ pequeños.
 
 ### Paso 5 — Clave `ALGORITHM` en el parser
 
-Según el contrato (sección 2.2) + un config de error `algorithm_invalid.txt`.
+Según el contrato (sección 2.2): leer, `.strip().lower()`, defecto
+`"backtracker"`. Sin lista ni error propio. Añadir
+`configs/algorithm_invalid.txt` (`ALGORITHM=prim`), que debe dar
+**`MazeGeneratorError`** (como `width_negative.txt`), no `ConfigError`.
 
 ### Paso 6 — Bonus: animación en pantalla (tecla `A`)
 
@@ -288,15 +298,14 @@ Cuando Ale tenga `steps` (A12): reproducirlos con `mlx_loop_hook`.
 - [x] Tests del Pac-Man (conectividad, bucles, callejones, 3×3, esquinas y
       centro, semilla) → 76 tests
 - [x] Validado con `maze_analyzer.py` → bonus de 0 callejones ✅
-- [ ] **A10** 🔴 **Garantizar ≥ 2 bucles en Pac-Man:** función nueva que,
-      tras el trenzado, abra muros extra (con "probar y deshacer", sin zonas
-      3×3) hasta que `pasos − (celdas − 1) ≥ 2`. Más:
-      - error si `PERFECT=False` y el tamaño es menor que **3×3**;
-      - tests con tamaños pequeños (3×3 a 6×6) y muchas semillas.
-- [ ] **A11** Bonus: **Kruskal** + parámetro `algorithm` (por defecto
-      `"backtracker"`; desconocido → `MazeGeneratorError`). Los tests que ya
-      hay, con los dos algoritmos (`parametrize`).
-- [ ] **A12** Bonus: `self.steps` para la animación (contrato en 2.1).
+- [x] **A10** Pac-Man con ≥ 2 bucles (`_ensure_loops`) y mínimo 3×3, con
+      tests de tamaños pequeños (PR #17)
+- [x] Refactor: métodos agrupados en bloques con separadores y
+      `_closed_inner_walls()` compartida por Kruskal y `_ensure_loops`
+- [x] **A11** Bonus: **Kruskal** con union-find + parámetro `algorithm`;
+      todos los tests con los dos algoritmos → 165 tests (`feat/kruskal`)
+- [ ] **A12** Bonus: `self.steps` para la animación (contrato en 2.1) 👈
+      **siguiente**
 - [ ] README: algoritmo y por qué, modo Pac-Man, "Reusable code".
 
 ---
@@ -335,10 +344,16 @@ y=1  (0,1) (1,1) (2,1)
   - Resultado: 0 callejones reales; solo quedan los 3 huecos del 42, que el
     analizador tolera como "enclosed".
   - Pendiente A10: garantizar ≥ 2 bucles en tamaños pequeños.
-- **Bonus — Kruskal** (decidido 2026-10-16): cada celda empieza siendo su
-  propia "isla"; se recorren los muros en orden aleatorio y se abre uno solo
-  si une dos islas distintas (union-find). Pasillos cortos y muchos cruces:
-  contrasta con el backtracker.
+- **Bonus — Kruskal** ✅: cada celda fuera del 42 empieza siendo su propia
+  "isla"; se recorren los muros interiores en orden aleatorio y se abre uno
+  solo si une dos islas distintas (union-find con un diccionario `parent`;
+  se unen los **jefes**, no las celdas). No usa `entry`: la conectividad la
+  garantiza que al final todo es una sola isla.
+  - `_find` con `while` (no recursión) y **acortando el camino**
+    (`parent[cell] = parent[parent[cell]]`): 200×200 pasó de 11 s a 0,3 s.
+  - Contraste: con la semilla 42 en 20×15, el backtracker deja 32
+    callejones y Kruskal 87 (pasillos cortos y muchos cruces frente a
+    pasillos largos).
 - **Zonas 3×3:** en modo perfecto no pueden existir (un 2×2 abierto ya sería
   un bucle); en Pac-Man las evita el trenzado. Comprobado por tests en los
   dos modos.
@@ -370,7 +385,7 @@ y=1  (0,1) (1,1) (2,1)
 | Clave obligatoria ausente / duplicada / desconocida / vacía | **error** (parser) |
 | Espacios alrededor del `=` | **se aceptan** |
 | Valores de PERFECT | `true`/`yes`/`1` · `false`/`no`/`0`, sin distinguir mayúsculas; otro = error |
-| `ALGORITHM` | `backtracker` (defecto) o `kruskal`, sin distinguir mayúsculas; otro = error |
+| `ALGORITHM` | `backtracker` (defecto) o `kruskal`, sin distinguir mayúsculas; otro = `MazeGeneratorError` (lo valida solo el generador) |
 | SEED ausente | aleatoria y se **muestra** |
 | `OUTPUT_FILE` vacío | **error** (parser) |
 | `OUTPUT_FILE` no escribible | **error claro, sin traceback** (`a_maze_ing.py` captura `OSError`) |
@@ -383,7 +398,9 @@ y=1  (0,1) (1,1) (2,1)
 - Shebang solo en `a_maze_ing.py`
 - Docstring de módulo en todos; docstrings en inglés, **estilo Google**,
   también en clases
-- Sin comentarios `#` en los `.py`
+- Sin comentarios `#` en los `.py`, **salvo** separadores de bloque dentro
+  de las clases: `# --- Nombre ---` hasta la columna 79 (excepción del
+  2026-10-16). Ningún otro comentario.
 - Type hints en todas las firmas; Python 3.10+
 - Constantes en MAYÚSCULAS con `Final`; auxiliares internas con `_`
 - `...` para cuerpos de contrato; `pass` para bloques vacíos ejecutables
@@ -407,19 +424,19 @@ Avance estimado (2026-10-16, por horas de trabajo, con los 3 bonus):
 
 | | Hecho | Queda (aprox.) |
 |:--|:--|:--|
-| Línea A (Ale) | ~75 % | 12–15 h (A10, Kruskal, `steps`, README) |
+| Línea A (Ale) | ~88 % | 3–4 h (`steps`, README del algoritmo) |
 | Línea B (joserome) | ~68 % | 9–14 h (lint, MLX en Poetry, prueba en campus, `ALGORITHM`, animación) |
 | Juntos | ~25 % | 10–14 h (`a_maze_ing.py`, `.whl`, LICENSE, README, defensa) |
-| **Total** | **~62 %** | **~30–40 h** |
+| **Total** | **~66 %** | **~23–32 h** |
 
 | Fase | Real | Notas |
 |:--|:--|:--|
 | 0 — Acuerdos y entorno | 2026-10-09 | |
 | 1 — Núcleo mínimo | 2026-10-13 | Generador, parser, solver, writer y tests |
-| 2 — Modo Pac-Man | 2026-10-15 | Trenzado + tests + analizador ✅ (falta A10) |
+| 2 — Modo Pac-Man | 2026-10-16 | Trenzado + ≥ 2 bucles + tests + analizador ✅ |
 | 3 — Display MLX | 2026-10-16 | Hecho, falta lint, instalación y prueba |
 | 4 — Integración (`a_maze_ing.py`) | | **Siguiente** |
-| 5 — Bonus (Kruskal, animación) | | 0 callejones ✅ |
+| 5 — Bonus | | 0 callejones ✅ · Kruskal ✅ · animación ⏳ |
 | 6 — Empaquetado y entrega | | |
 
 ### Puntos de sincronización
@@ -427,7 +444,7 @@ Avance estimado (2026-10-16, por horas de trabajo, con los 3 bonus):
 - [x] **S0** — contrato y repo funcionando → nos separamos
 - [ ] **S1** — `a_maze_ing.py`: config → laberinto → archivo → ventana,
       `maze_analyzer.py` OK, todos los `configs/` con error claro
-- [ ] **S2** — Pac-Man con A10 + display probado en el campus
+- [ ] **S2** — Pac-Man con A10 ✅ + display probado en el campus
 - [ ] **S3** — paquete `.whl`, LICENSE, README, `lint-strict`, ensayo de
       defensa
 
@@ -435,7 +452,7 @@ Avance estimado (2026-10-16, por horas de trabajo, con los 3 bonus):
 
 1. joserome: paso 1 (lint en verde).
 2. Juntos: `a_maze_ing.py` y probarlo en el campus con la ventana.
-3. Ale: A10. joserome: pasos 2 y 3.
+3. Ale: A12 (`steps`). joserome: pasos 2, 3 y 5.
 
 ### Herramientas
 
@@ -497,6 +514,12 @@ Avance estimado (2026-10-16, por horas de trabajo, con los 3 bonus):
 | 2026-10-16 | MLX se instala con Poetry desde el `.whl` de la intra, en un grupo aparte | ambos | `make install` instala todo; `mazegen` sin MLX |
 | 2026-10-16 | `Display` recibe el laberinto ya generado | ambos | No generar dos veces |
 | 2026-10-16 | Merges siempre con los dos delante, sin proteger `main` | ambos | Trabajamos juntos en persona |
+| 2026-10-16 | `_ensure_loops` tras el trenzado; comprueba antes de abrir | Ale | Los laberintos grandes no cambian con la misma semilla |
+| 2026-10-16 | `ALGORITHM` lo valida solo el generador; el parser solo lee y pasa a minúscula | ambos | Una sola lista de algoritmos; misma regla formato/valores |
+| 2026-10-16 | Kruskal con union-find, `_find` iterativo y acortando caminos | Ale | Sin límite de recursión; 200×200 en 0,3 s |
+| 2026-10-16 | `_closed_inner_walls()` compartida por Kruskal y `_ensure_loops` | Ale | La lista de muros vive en un solo sitio |
+| 2026-10-16 | Excepción a B7: separadores `# --- Bloque ---` dentro de las clases | ambos | Legibilidad de `generator.py` (~540 líneas) |
+| 2026-10-16 | Todos los tests de propiedades con los dos algoritmos (`parametrize`) | Ale | Kruskal cumple las mismas reglas; 165 tests |
 
 ---
 

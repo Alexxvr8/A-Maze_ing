@@ -8,6 +8,7 @@ import pytest
 from mazegen import EAST, NORTH, SOUTH, WEST
 from mazegen import MazeGenerator, MazeGeneratorError
 from mazegen.directions import ALL_DIRECTIONS, ALL_WALLS, DELTAS, OPPOSITE
+from mazegen.generator import ALGORITHMS
 
 
 SEEDS = [0, 1, 42, 1234, 99999]
@@ -28,7 +29,8 @@ TOO_SMALL_BRAIDED = [(2, 5), (5, 2), (1, 10)]
 
 
 def _build(seed: int, width: int = 20, height: int = 15,
-           perfect: bool = True) -> MazeGenerator:
+           perfect: bool = True,
+           algorithm: str = "backtracker") -> MazeGenerator:
     """Create and generate a maze with fixed entry and exit corners."""
     maze = MazeGenerator(
         width=width,
@@ -37,6 +39,7 @@ def _build(seed: int, width: int = 20, height: int = 15,
         exit=(width - 1, height - 1),
         seed=seed,
         perfect=perfect,
+        algorithm=algorithm,
     )
     maze.generate()
     return maze
@@ -116,10 +119,11 @@ def _has_open_area(maze: MazeGenerator) -> bool:
     return False
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_border_is_closed(seed: int) -> None:
+def test_border_is_closed(seed: int, algorithm: str) -> None:
     """Every cell on the outer border has its outer wall closed."""
-    maze = _build(seed)
+    maze = _build(seed, algorithm=algorithm)
     grid = maze.grid
     width = maze.width
     height = maze.height
@@ -133,10 +137,11 @@ def test_border_is_closed(seed: int) -> None:
         assert grid[y][width - 1] & EAST
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_walls_are_coherent(seed: int) -> None:
+def test_walls_are_coherent(seed: int, algorithm: str) -> None:
     """Two neighbour cells always agree on the wall between them."""
-    maze = _build(seed)
+    maze = _build(seed, algorithm=algorithm)
     grid = maze.grid
     width = maze.width
     height = maze.height
@@ -155,10 +160,11 @@ def test_walls_are_coherent(seed: int) -> None:
                 assert cell_wall == neighbour_wall
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_pattern_cells_are_closed(seed: int) -> None:
+def test_pattern_cells_are_closed(seed: int, algorithm: str) -> None:
     """Every cell of the "42" pattern has all four walls closed."""
-    maze = _build(seed)
+    maze = _build(seed, algorithm=algorithm)
     pattern_cells = maze.pattern_cells
 
     assert pattern_cells
@@ -166,10 +172,11 @@ def test_pattern_cells_are_closed(seed: int) -> None:
         assert maze.grid[y][x] == ALL_WALLS
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_all_cells_reachable(seed: int) -> None:
+def test_all_cells_reachable(seed: int, algorithm: str) -> None:
     """Every cell outside the "42" can be reached from the entry."""
-    maze = _build(seed)
+    maze = _build(seed, algorithm=algorithm)
     reached = _reachable(maze)
     expected = maze.width * maze.height - len(maze.pattern_cells)
 
@@ -177,30 +184,35 @@ def test_all_cells_reachable(seed: int) -> None:
     assert maze.exit in reached
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_maze_is_perfect(seed: int) -> None:
+def test_maze_is_perfect(seed: int, algorithm: str) -> None:
     """A perfect maze has exactly one path between any two cells."""
-    maze = _build(seed)
+    maze = _build(seed, algorithm=algorithm)
     reached = _reachable(maze)
 
     assert _count_passages(maze) == len(reached) - 1
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_same_seed_same_maze(seed: int) -> None:
+def test_same_seed_same_maze(seed: int, algorithm: str) -> None:
     """The same seed always builds the same maze."""
-    first = _build(seed)
-    second = _build(seed)
-    other = _build(seed + 1)
+    first = _build(seed, algorithm=algorithm)
+    second = _build(seed, algorithm=algorithm)
+    other = _build(seed + 1, algorithm=algorithm)
 
     assert first.grid == second.grid
     assert first.grid != other.grid
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("width, height", SMALL_SIZES)
-def test_small_maze_has_no_pattern(width: int, height: int) -> None:
+def test_small_maze_has_no_pattern(
+    width: int, height: int, algorithm: str
+) -> None:
     """A maze too small for the "42" is generated without it."""
-    maze = _build(42, width, height)
+    maze = _build(42, width, height, algorithm=algorithm)
     reached = _reachable(maze)
 
     assert maze.pattern_cells == set()
@@ -219,10 +231,11 @@ def test_invalid_params_raise(
         MazeGenerator(width=width, height=height, entry=entry, exit=exit_)
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_pacman_all_cells_reachable(seed: int) -> None:
+def test_pacman_all_cells_reachable(seed: int, algorithm: str) -> None:
     """Every cell outside the "42" is reachable in the Pac-Man mode."""
-    maze = _build(seed=seed, perfect=False)
+    maze = _build(seed=seed, perfect=False, algorithm=algorithm)
     reached = _reachable(maze)
     expected = maze.width * maze.height - len(maze.pattern_cells)
 
@@ -230,37 +243,43 @@ def test_pacman_all_cells_reachable(seed: int) -> None:
     assert maze.exit in reached
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_pacman_has_loops(seed: int) -> None:
+def test_pacman_has_loops(seed: int, algorithm: str) -> None:
     """The Pac-Man mode has at least two independent loops."""
-    maze = _build(seed=seed, perfect=False)
+    maze = _build(seed=seed, perfect=False, algorithm=algorithm)
     reached = _reachable(maze)
 
     assert _count_passages(maze) >= (len(reached) - 1) + 2
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_pacman_dead_ends(seed: int) -> None:
+def test_pacman_dead_ends(seed: int, algorithm: str) -> None:
     """Only the dead ends forced by the "42" drawing are left."""
-    maze = _build(seed=seed, perfect=False)
-    no_pattern = _build(seed=seed, width=5, height=5, perfect=False)
+    maze = _build(seed=seed, perfect=False, algorithm=algorithm)
+    no_pattern = _build(
+        seed=seed, width=5, height=5, perfect=False, algorithm=algorithm
+    )
 
     assert _count_dead_ends(maze) <= PATTERN_DEAD_ENDS
     assert _count_dead_ends(no_pattern) == 0
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("perfect", [True, False])
 @pytest.mark.parametrize("seed", SEEDS)
-def test_no_open_area(seed: int, perfect: bool) -> None:
+def test_no_open_area(seed: int, perfect: bool, algorithm: str) -> None:
     """No 3x3 block is fully open, in both generation modes."""
-    maze = _build(seed, perfect=perfect)
+    maze = _build(seed, perfect=perfect, algorithm=algorithm)
     assert not _has_open_area(maze)
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_pacman_corners_and_centre(seed: int) -> None:
+def test_pacman_corners_and_centre(seed: int, algorithm: str) -> None:
     """The four corners and the centre are reachable corridors."""
-    maze = _build(seed, perfect=False)
+    maze = _build(seed, perfect=False, algorithm=algorithm)
     reached = _reachable(maze)
 
     corners_and_centre: list[tuple[int, int]] = [
@@ -275,22 +294,26 @@ def test_pacman_corners_and_centre(seed: int) -> None:
         assert cell in reached
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
-def test_pacman_same_seed_same_maze(seed: int) -> None:
+def test_pacman_same_seed_same_maze(seed: int, algorithm: str) -> None:
     """The same seed always builds the same Pac-Man maze."""
-    first = _build(seed, perfect=False)
-    second = _build(seed, perfect=False)
-    other = _build(seed + 1, perfect=False)
+    first = _build(seed, perfect=False, algorithm=algorithm)
+    second = _build(seed, perfect=False, algorithm=algorithm)
+    other = _build(seed + 1, perfect=False, algorithm=algorithm)
 
     assert first.grid == second.grid
     assert first.grid != other.grid
 
 
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("width, height", SMALL_BRAIDED_SIZES)
-def test_pacman_small_mazes_have_loops(width: int, height: int) -> None:
+def test_pacman_small_mazes_have_loops(
+    width: int, height: int, algorithm: str
+) -> None:
     """Small Pac-Man mazes keep two loops and no 3x3 open area."""
     for seed in range(50):
-        maze = _build(seed, width, height, perfect=False)
+        maze = _build(seed, width, height, perfect=False, algorithm=algorithm)
         reached = _reachable(maze)
 
         assert _count_passages(maze) >= (len(reached) - 1) + 2
@@ -306,3 +329,22 @@ def test_small_pacman_raises(width: int, height: int) -> None:
                       entry=(0, 0),
                       exit=(width - 1, height - 1),
                       perfect=False)
+
+
+def test_unknown_algorithm_raises() -> None:
+    """An algorithm name that does not exist raises MazeGeneratorError."""
+    with pytest.raises(MazeGeneratorError):
+        MazeGenerator(width=20,
+                      height=15,
+                      entry=(0, 0),
+                      exit=(19, 14),
+                      algorithm="prim")
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_algorithms_build_different_mazes(seed: int) -> None:
+    """The same seed gives a different maze with each algorithm."""
+    backtracker = _build(seed, algorithm="backtracker")
+    kruskal = _build(seed, algorithm="kruskal")
+
+    assert backtracker.grid != kruskal.grid

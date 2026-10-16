@@ -23,6 +23,8 @@ INVALID_PARAMS = [
     (20, 15, (0, 0), (6, 5)),
 ]
 PATTERN_DEAD_ENDS = 3
+SMALL_BRAIDED_SIZES = [(3, 3), (3, 4), (4, 3), (4, 4), (5, 4), (6, 4)]
+TOO_SMALL_BRAIDED = [(2, 5), (5, 2), (1, 10)]
 
 
 def _build(seed: int, width: int = 20, height: int = 15,
@@ -282,3 +284,25 @@ def test_pacman_same_seed_same_maze(seed: int) -> None:
 
     assert first.grid == second.grid
     assert first.grid != other.grid
+
+
+@pytest.mark.parametrize("width, height", SMALL_BRAIDED_SIZES)
+def test_pacman_small_mazes_have_loops(width: int, height: int) -> None:
+    """Small Pac-Man mazes keep two loops and no 3x3 open area."""
+    for seed in range(50):
+        maze = _build(seed, width, height, perfect=False)
+        reached = _reachable(maze)
+
+        assert _count_passages(maze) >= (len(reached) - 1) + 2
+        assert not _has_open_area(maze)
+
+
+@pytest.mark.parametrize("width, height", TOO_SMALL_BRAIDED)
+def test_small_pacman_raises(width: int, height: int) -> None:
+    """A Pac-Man maze smaller than 3x3 raises MazeGeneratorError."""
+    with pytest.raises(MazeGeneratorError):
+        MazeGenerator(width=width,
+                      height=height,
+                      entry=(0, 0),
+                      exit=(width - 1, height - 1),
+                      perfect=False)

@@ -95,6 +95,7 @@ class MazeGenerator:
         self.algorithm = algorithm
         self.seed = random.randrange(2**32) if seed is None else seed
         self.grid: list[list[int]] = []
+        self.steps: list[tuple[tuple[int, int], int]] = []
 
     # --- Validation ----------------------------------------------------------
 
@@ -185,6 +186,19 @@ class MazeGenerator:
 
         self.grid[y][x] |= direction
         self.grid[ny][nx] |= OPPOSITE[direction]
+
+    def _carve(self, cell: tuple[int, int], direction: int) -> None:
+        """Open a wall for good and record it as an animation step.
+
+        Use it only for walls that will stay open. Walls that may be closed
+        again are opened with _open_wall and recorded once they are kept.
+
+        Args:
+            cell: Cell as (x, y).
+            direction: Wall to open, one of the direction bits.
+        """
+        self._open_wall(cell, direction)
+        self.steps.append((cell, direction))
 
     def _count_walls(self, cell: tuple[int, int]) -> int:
         """Return how many of the four walls of a cell are closed.
@@ -342,7 +356,7 @@ class MazeGenerator:
                 continue
 
             direction, next_cell = rng.choice(options)
-            self._open_wall(current, direction)
+            self._carve(current, direction)
 
             visited.add(next_cell)
             stack.append(next_cell)
@@ -392,7 +406,7 @@ class MazeGenerator:
             root_neighbour = self._find(parent, neighbour)
             if root_cell == root_neighbour:
                 continue
-            self._open_wall(cell, direction)
+            self._carve(cell, direction)
             parent[root_cell] = root_neighbour
 
     # --- Braiding (non-perfect mode) -----------------------------------------
@@ -466,6 +480,7 @@ class MazeGenerator:
                     or self._touches_open_block(neighbour)):
                 self._close_wall(cell, direction)
                 continue
+            self.steps.append((cell, direction))
             return
 
     def _braid(self, rng: random.Random) -> None:
@@ -510,6 +525,8 @@ class MazeGenerator:
             if (self._touches_open_block(cell)
                     or self._touches_open_block(neighbour)):
                 self._close_wall(cell, direction)
+            else:
+                self.steps.append((cell, direction))
 
     # --- Public API ----------------------------------------------------------
 
@@ -520,10 +537,12 @@ class MazeGenerator:
         algorithm. If the maze is not perfect, dead ends are removed and
         extra walls are opened until it has at least MIN_LOOPS loops. Cells
         of the "42" pattern always keep their four walls. The same seed
-        always produces the same maze.
+        always produces the same maze. Every wall that ends up open is
+        also recorded in self.steps, in order, for the animation.
         """
         rng = random.Random(self.seed)
         self._fill_grid()
+        self.steps = []
 
         if self.algorithm == "kruskal":
             self._kruskal(rng)

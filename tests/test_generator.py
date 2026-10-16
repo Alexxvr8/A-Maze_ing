@@ -11,6 +11,8 @@ from mazegen.directions import ALL_DIRECTIONS, ALL_WALLS, DELTAS, OPPOSITE
 from mazegen.generator import ALGORITHMS
 
 
+# --- Constants ---------------------------------------------------------------
+
 SEEDS = [0, 1, 42, 1234, 99999]
 SMALL_SIZES = [(8, 15), (20, 6), (5, 5)]
 INVALID_PARAMS = [
@@ -27,6 +29,8 @@ PATTERN_DEAD_ENDS = 3
 SMALL_BRAIDED_SIZES = [(3, 3), (3, 4), (4, 3), (4, 4), (5, 4), (6, 4)]
 TOO_SMALL_BRAIDED = [(2, 5), (5, 2), (1, 10)]
 
+
+# --- Helpers -----------------------------------------------------------------
 
 def _build(seed: int, width: int = 20, height: int = 15,
            perfect: bool = True,
@@ -119,6 +123,19 @@ def _has_open_area(maze: MazeGenerator) -> bool:
     return False
 
 
+def _replay(maze: MazeGenerator) -> list[list[int]]:
+    """Rebuild the grid from a closed maze by opening every recorded step."""
+    closed_grid = [[ALL_WALLS] * maze.width for _ in range(maze.height)]
+
+    for (x, y), direction in maze.steps:
+        dx, dy = DELTAS[direction]
+        closed_grid[y][x] &= ~direction
+        closed_grid[y + dy][x + dx] &= ~OPPOSITE[direction]
+    return closed_grid
+
+
+# --- Grid structure ----------------------------------------------------------
+
 @pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
 def test_border_is_closed(seed: int, algorithm: str) -> None:
@@ -172,6 +189,8 @@ def test_pattern_cells_are_closed(seed: int, algorithm: str) -> None:
         assert maze.grid[y][x] == ALL_WALLS
 
 
+# --- Perfect mode ------------------------------------------------------------
+
 @pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
 def test_all_cells_reachable(seed: int, algorithm: str) -> None:
@@ -219,6 +238,8 @@ def test_small_maze_has_no_pattern(
     assert len(reached) == width * height
 
 
+# --- Invalid parameters ------------------------------------------------------
+
 @pytest.mark.parametrize("width, height, entry, exit_", INVALID_PARAMS)
 def test_invalid_params_raise(
     width: int,
@@ -230,6 +251,29 @@ def test_invalid_params_raise(
     with pytest.raises(MazeGeneratorError):
         MazeGenerator(width=width, height=height, entry=entry, exit=exit_)
 
+
+@pytest.mark.parametrize("width, height", TOO_SMALL_BRAIDED)
+def test_small_pacman_raises(width: int, height: int) -> None:
+    """A Pac-Man maze smaller than 3x3 raises MazeGeneratorError."""
+    with pytest.raises(MazeGeneratorError):
+        MazeGenerator(width=width,
+                      height=height,
+                      entry=(0, 0),
+                      exit=(width - 1, height - 1),
+                      perfect=False)
+
+
+def test_unknown_algorithm_raises() -> None:
+    """An algorithm name that does not exist raises MazeGeneratorError."""
+    with pytest.raises(MazeGeneratorError):
+        MazeGenerator(width=20,
+                      height=15,
+                      entry=(0, 0),
+                      exit=(19, 14),
+                      algorithm="prim")
+
+
+# --- Pac-Man mode ------------------------------------------------------------
 
 @pytest.mark.parametrize("algorithm", ALGORITHMS)
 @pytest.mark.parametrize("seed", SEEDS)
@@ -272,6 +316,7 @@ def test_pacman_dead_ends(seed: int, algorithm: str) -> None:
 def test_no_open_area(seed: int, perfect: bool, algorithm: str) -> None:
     """No 3x3 block is fully open, in both generation modes."""
     maze = _build(seed, perfect=perfect, algorithm=algorithm)
+
     assert not _has_open_area(maze)
 
 
@@ -320,26 +365,7 @@ def test_pacman_small_mazes_have_loops(
         assert not _has_open_area(maze)
 
 
-@pytest.mark.parametrize("width, height", TOO_SMALL_BRAIDED)
-def test_small_pacman_raises(width: int, height: int) -> None:
-    """A Pac-Man maze smaller than 3x3 raises MazeGeneratorError."""
-    with pytest.raises(MazeGeneratorError):
-        MazeGenerator(width=width,
-                      height=height,
-                      entry=(0, 0),
-                      exit=(width - 1, height - 1),
-                      perfect=False)
-
-
-def test_unknown_algorithm_raises() -> None:
-    """An algorithm name that does not exist raises MazeGeneratorError."""
-    with pytest.raises(MazeGeneratorError):
-        MazeGenerator(width=20,
-                      height=15,
-                      entry=(0, 0),
-                      exit=(19, 14),
-                      algorithm="prim")
-
+# --- Algorithms --------------------------------------------------------------
 
 @pytest.mark.parametrize("seed", SEEDS)
 def test_algorithms_build_different_mazes(seed: int) -> None:
@@ -348,3 +374,42 @@ def test_algorithms_build_different_mazes(seed: int) -> None:
     kruskal = _build(seed, algorithm="kruskal")
 
     assert backtracker.grid != kruskal.grid
+
+
+# --- Animation steps ---------------------------------------------------------
+
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
+@pytest.mark.parametrize("perfect", [True, False])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_steps_rebuild_the_maze(
+    seed: int, perfect: bool, algorithm: str
+) -> None:
+    """Replaying the steps on a closed grid gives the same maze."""
+    maze = _build(seed, perfect=perfect, algorithm=algorithm)
+
+    assert _replay(maze) == maze.grid
+    assert len(maze.steps) == _count_passages(maze)
+
+
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_steps_reset_on_generate(seed: int, algorithm: str) -> None:
+    """Generating again does not add the old steps to the new ones."""
+    maze = _build(seed, algorithm=algorithm)
+    first_steps = list(maze.steps)
+    maze.generate()
+
+    assert maze.steps == first_steps
+
+
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
+@pytest.mark.parametrize("width, height", SMALL_BRAIDED_SIZES)
+def test_small_pacman_steps_rebuild_the_maze(
+    width: int, height: int, algorithm: str
+) -> None:
+    """Small Pac-Man mazes, where extra walls are opened, replay correctly."""
+    for seed in range(50):
+        maze = _build(seed, width, height, perfect=False, algorithm=algorithm)
+
+        assert _replay(maze) == maze.grid
+        assert len(maze.steps) == _count_passages(maze)

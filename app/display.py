@@ -53,7 +53,7 @@ class Display:
         self.mlx_ptr = self.mlx.mlx_init()
         if self.mlx_ptr is None:
             raise RuntimeError("MLX could not connect to the display.")
-        
+
         (_, screen_w, screen_h) = self.mlx.mlx_get_screen_size(self.mlx_ptr)
         if screen_w == 0 or screen_h == 0:
             self.cell_size = MAX_CELL_SIZE
@@ -115,7 +115,7 @@ class Display:
             width: int,
             height: int,
             colour: int
-        ) -> None:
+    ) -> None:
         """Paint a filled rectangle of one colour in the image buffer.
 
         Args:

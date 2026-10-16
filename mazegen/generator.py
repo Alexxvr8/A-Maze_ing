@@ -15,6 +15,7 @@ from mazegen.directions import (
 from mazegen.pattern42 import pattern_42_cells
 
 
+ALGORITHMS: Final = ("backtracker", "kruskal")
 MIN_BRAIDED_SIZE: Final = 3
 MIN_LOOPS: Final = 2
 
@@ -24,11 +25,17 @@ class MazeGeneratorError(ValueError):
 
 
 class MazeGenerator:
-    """Generate perfect or braided mazes with an optional fixed seed."""
+    """Generate perfect or braided mazes with an optional fixed seed.
+
+    Methods are grouped in this order: validation, grid and walls,
+    neighbours, perfect maze algorithms (backtracker and Kruskal),
+    braiding for the non-perfect mode, and the public API.
+    """
 
     def __init__(self, width: int, height: int,
                  entry: tuple[int, int], exit: tuple[int, int],
-                 perfect: bool = True, seed: int | None = None) -> None:
+                 perfect: bool = True, seed: int | None = None,
+                 algorithm: str = "backtracker") -> None:
         """Store and validate the maze parameters.
 
         Args:
@@ -38,11 +45,14 @@ class MazeGenerator:
             exit: Exit cell as (x, y).
             perfect: Whether the maze has a single path between cells.
             seed: Random seed, or None to pick one at random.
+            algorithm: Name of the algorithm for the perfect maze, one of
+                ALGORITHMS.
 
         Raises:
             MazeGeneratorError: If the size is not positive, or entry or
                 exit are out of bounds, equal, or inside the "42" pattern,
-                or a non-perfect maze is smaller than 3x3.
+                a non-perfect maze is smaller than 3x3, or the algorithm is
+                unknown.
         """
         if width <= 0:
             raise MazeGeneratorError(f"width must be positive, got {width}")
@@ -77,8 +87,16 @@ class MazeGenerator:
                 f"got {width}x{height}"
             )
 
+        if algorithm not in ALGORITHMS:
+            raise MazeGeneratorError(
+                f"algorithm must be one of {', '.join(ALGORITHMS)}, "
+                f"got '{algorithm}'"
+            )
+        self.algorithm = algorithm
         self.seed = random.randrange(2**32) if seed is None else seed
         self.grid: list[list[int]] = []
+
+    # --- Validation ----------------------------------------------------------
 
     def _inside(self, cell: tuple[int, int]) -> bool:
         """Return whether the cell is inside the maze."""
@@ -116,6 +134,8 @@ class MazeGenerator:
             raise MazeGeneratorError(
                 f'{name} {cell} is inside the "42" pattern'
             )
+
+    # --- Grid and walls ------------------------------------------------------
 
     def _fill_grid(self) -> None:
         """Reset the grid so every cell has all four walls closed."""
@@ -196,6 +216,65 @@ class MazeGenerator:
         """
         return cell not in self.pattern_cells and self._count_walls(cell) == 3
 
+    def _closed_inner_walls(
+        self,
+    ) -> list[tuple[tuple[int, int], int, tuple[int, int]]]:
+        """Return every closed wall between two cells outside the "42".
+
+        Only the east and south walls of each cell are checked, so every
+        wall appears once. Walls on the outer border are never included.
+
+        Returns:
+            List of (cell, direction, neighbour) tuples, in grid order.
+        """
+        walls: list[tuple[tuple[int, int], int, tuple[int, int]]] = []
+
+        for y in range(self.height):
+            for x in range(self.width):
+                for direction in (EAST, SOUTH):
+                    dx, dy = DELTAS[direction]
+                    cell = (x, y)
+                    neighbour = (x + dx, y + dy)
+
+                    if (self.grid[y][x] & direction
+                            and self._inside(neighbour)
+                            and cell not in self.pattern_cells
+                            and neighbour not in self.pattern_cells):
+                        walls.append((cell, direction, neighbour))
+        return walls
+
+    def _count_passages(self) -> int:
+        """Return how many open walls join two cells of the maze.
+
+        Only the east and south walls of each cell are checked, so every
+        passage is counted once.
+        """
+        grid = self.grid
+        passages = 0
+
+        for y in range(self.height):
+            for x in range(self.width):
+                if not (grid[y][x] & EAST):
+                    passages += 1
+                if not (grid[y][x] & SOUTH):
+                    passages += 1
+        return passages
+
+    def _count_loops(self) -> int:
+        """Return how many independent loops the maze has.
+
+        A maze where every reachable cell is connected and there are no
+        loops has one passage fewer than cells. Each extra passage adds
+        one loop.
+
+        Returns:
+            Number of passages minus (reachable cells - 1).
+        """
+        reachable = self.width * self.height - len(self.pattern_cells)
+        return self._count_passages() - (reachable - 1)
+
+    # --- Neighbours ----------------------------------------------------------
+
     def _neighbours(
         self, cell: tuple[int, int]
     ) -> list[tuple[int, tuple[int, int]]]:
@@ -238,6 +317,8 @@ class MazeGenerator:
                 free.append((direction, neighbour))
         return free
 
+    # --- Perfect maze algorithms ---------------------------------------------
+
     def _backtracker(self, rng: random.Random) -> None:
         """Carve a perfect maze from the entry with a randomised DFS.
 
@@ -265,6 +346,56 @@ class MazeGenerator:
 
             visited.add(next_cell)
             stack.append(next_cell)
+
+    def _find(
+        self,
+        parent: dict[tuple[int, int], tuple[int, int]],
+        cell: tuple[int, int],
+    ) -> tuple[int, int]:
+        """Return the representative cell of the group that holds a cell.
+
+        Args:
+            parent: Union-find table mapping each cell to a cell of its
+                group. A cell that maps to itself is the representative.
+            cell: Cell as (x, y).
+
+        Returns:
+            The representative cell of the group.
+        """
+        while parent[cell] != cell:
+            parent[cell] = parent[parent[cell]]
+            cell = parent[cell]
+        return cell
+
+    def _kruskal(self, rng: random.Random) -> None:
+        """Carve a perfect maze with a randomised Kruskal algorithm.
+
+        Every cell outside the "42" starts as its own group. Inner walls
+        are visited in a random order, and a wall is opened only when it
+        joins two different groups, so no loop is ever created.
+
+        Args:
+            rng: Random generator seeded with self.seed, shared with the
+                rest of the generation so the maze stays reproducible.
+        """
+        parent: dict[tuple[int, int], tuple[int, int]] = {}
+        for y in range(self.height):
+            for x in range(self.width):
+                if (x, y) not in self.pattern_cells:
+                    parent[(x, y)] = (x, y)
+
+        walls = self._closed_inner_walls()
+        rng.shuffle(walls)
+
+        for cell, direction, neighbour in walls:
+            root_cell = self._find(parent, cell)
+            root_neighbour = self._find(parent, neighbour)
+            if root_cell == root_neighbour:
+                continue
+            self._open_wall(cell, direction)
+            parent[root_cell] = root_neighbour
+
+    # --- Braiding (non-perfect mode) -----------------------------------------
 
     def _block_is_open(self, left: int, top: int) -> bool:
         """Return whether the 3x3 block at (left, top) has no inner walls.
@@ -358,36 +489,6 @@ class MazeGenerator:
             if self._is_dead_end(cell):
                 self._remove_dead_end(cell, rng)
 
-    def _count_passages(self) -> int:
-        """Return how many open walls join two cells of the maze.
-
-        Only the east and south walls of each cell are checked, so every
-        passage is counted once.
-        """
-        grid = self.grid
-        passages = 0
-
-        for y in range(self.height):
-            for x in range(self.width):
-                if not (grid[y][x] & EAST):
-                    passages += 1
-                if not (grid[y][x] & SOUTH):
-                    passages += 1
-        return passages
-
-    def _count_loops(self) -> int:
-        """Return how many independent loops the maze has.
-
-        A maze where every reachable cell is connected and there are no
-        loops has one passage fewer than cells. Each extra passage adds
-        one loop.
-
-        Returns:
-            Number of passages minus (reachable cells - 1).
-        """
-        reachable = self.width * self.height - len(self.pattern_cells)
-        return self._count_passages() - (reachable - 1)
-
     def _ensure_loops(self, rng: random.Random) -> None:
         """Open extra walls until the maze has at least MIN_LOOPS loops.
 
@@ -398,20 +499,7 @@ class MazeGenerator:
         Args:
             rng: Random generator shared with the rest of the generation.
         """
-        candidates: list[tuple[tuple[int, int], int, tuple[int, int]]] = []
-
-        for y in range(self.height):
-            for x in range(self.width):
-                for direction in (EAST, SOUTH):
-                    dx, dy = DELTAS[direction]
-                    cell = (x, y)
-                    neighbour = (x + dx, y + dy)
-
-                    if (self.grid[y][x] & direction
-                            and self._inside(neighbour)
-                            and cell not in self.pattern_cells
-                            and neighbour not in self.pattern_cells):
-                        candidates.append((cell, direction, neighbour))
+        candidates = self._closed_inner_walls()
 
         rng.shuffle(candidates)
 
@@ -423,11 +511,13 @@ class MazeGenerator:
                     or self._touches_open_block(neighbour)):
                 self._close_wall(cell, direction)
 
+    # --- Public API ----------------------------------------------------------
+
     def generate(self) -> None:
         """Build the maze with the current seed.
 
-        The grid is reset and a perfect maze is carved with the
-        backtracker. If the maze is not perfect, dead ends are removed and
+        The grid is reset and a perfect maze is carved with the chosen
+        algorithm. If the maze is not perfect, dead ends are removed and
         extra walls are opened until it has at least MIN_LOOPS loops. Cells
         of the "42" pattern always keep their four walls. The same seed
         always produces the same maze.
@@ -435,7 +525,10 @@ class MazeGenerator:
         rng = random.Random(self.seed)
         self._fill_grid()
 
-        self._backtracker(rng)
+        if self.algorithm == "kruskal":
+            self._kruskal(rng)
+        else:
+            self._backtracker(rng)
 
         if not self.perfect:
             self._braid(rng)

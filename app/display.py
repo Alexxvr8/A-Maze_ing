@@ -1,10 +1,17 @@
 """display.py: render the maze in the window and run the menu."""
 
 
-from typing import Final
+import time
+from typing import Final, Literal
 from mazegen import EAST, NORTH, SOUTH, WEST
 from mazegen import MazeGenerator, shortest_path
-from mazegen.directions import ALL_DIRECTIONS, DELTAS, LETTERS
+from mazegen.directions import (
+    ALL_DIRECTIONS,
+    DELTAS,
+    LETTERS,
+    OPPOSITE,
+    ALL_WALLS
+)
 from mlx import Mlx
 
 
@@ -12,13 +19,23 @@ SCREEN_RATIO: Final = 0.8
 MAX_CELL_SIZE: Final = 40
 MIN_CELL_SIZE: Final = 1
 HELP_HEIGHT: Final = 30
-HELP_TEXT: Final = "R: new maze   P: path   C: colour   ESC: quit"
+MIN_WINDOW_WIDTH: Final = 440
+HELP_TEXT: Final = (
+    "R: new maze   P: path   C: colour   A: animate   ESC: quit"
+)
 
 KEY_ESCAPE: Final = 65307
+KEY_A: Final = 97
 KEY_R: Final = 114
 KEY_P: Final = 112
 KEY_C: Final = 99
 EVENT_CLOSE: Final = 33
+
+FRAME_DELAY: Final = 0.03
+ANIMATION_SECONDS: Final = 4.0
+ANIMATION_FRAMES: Final = int(ANIMATION_SECONDS / FRAME_DELAY)
+GENERATE: Final = "generate"
+PATH: Final = "path"
 
 BG_COLOUR: Final = 0xFF000000
 TEXT_COLOUR: Final = 0xFFFFFFFF
@@ -36,17 +53,21 @@ WALL_COLOURS: Final = (
 
 
 class Display:
+    """MiniLibX window that shows a maze and reacts to the keyboard.
+
+    Keys: R new maze, P show or hide the path (animated), C wall colour,
+    A replay the generation, ESC or the window cross to quit.
+    """
     def __init__(self, generator: MazeGenerator) -> None:
-        """Generate the maze and open the window.
+        """Open the window for a maze that is already generated.
 
         Args:
-            generator: Maze generator. Its maze is generated here.
+            generator: Maze generator, with generate() already called.
 
         Raises:
             RuntimeError: If MLX cannot open the connection, the window or
                 the image.
         """
-        generator.generate()
         self.generator = generator
 
         self.mlx = Mlx()
@@ -69,7 +90,7 @@ class Display:
 
         self.win_ptr = self.mlx.mlx_new_window(
             self.mlx_ptr,
-            self.width_px,
+            max(self.width_px, MIN_WINDOW_WIDTH),
             self.height_px + HELP_HEIGHT,
             "A-Maze-ing"
         )
@@ -85,11 +106,23 @@ class Display:
             self.mlx.mlx_get_data_addr(self.img_ptr)
         )
         self.pixel_bytes = bits // 8
-        self.byte_order = "little" if image_format == 0 else "big"
+        self.byte_order: Literal["little", "big"] = (
+            "little" if image_format == 0 else "big"
+        )
 
         self.show_path = False
+        self.path_after = False
         self.colour_index = 0
-        self.path_cells: set[tuple[int, int]] = set()
+        self.view_grid: list[list[int]] = generator.grid
+
+        self.animation: str | None = None
+        self.last_frame = 0.0
+        self.step_index = 0
+        self.steps_per_frame = 1
+        self.path_per_frame = 1
+        self.path_progress = 0
+        self.path_list: list[tuple[int, int]] = []
+        self.path_order: dict[tuple[int, int], int] = {}
         self._update_path()
 
     def _update_path(self) -> None:
@@ -100,13 +133,21 @@ class Display:
         moves = {LETTERS[d]: DELTAS[d] for d in ALL_DIRECTIONS}
 
         (x, y) = self.generator.entry
-        cells = {(x, y)}
+        cells = [(x, y)]
         for letter in letters:
             (dx, dy) = moves[letter]
             x += dx
             y += dy
-            cells.add((x, y))
-        self.path_cells = cells
+            cells.append((x, y))
+
+        self.path_list = cells
+        self.path_order = {cell: i for i, cell in enumerate(cells)}
+        self.path_progress = len(cells)
+
+    def _path_visible(self, cell: tuple[int, int]) -> bool:
+        """Return whether the cell is already part of the shown path."""
+        order = self.path_order.get(cell)
+        return order is not None and order < self.path_progress
 
     def _fill_rect(
             self,
@@ -148,13 +189,48 @@ class Display:
             return PATTERN_COLOUR
         return None
 
+    def _paint_path_cell(self, cell: tuple[int, int]) -> None:
+        """Paint one path cell, without redrawing the whole maze.
+
+        Args:
+            cell: Cell as (x, y). Entry, exit and "42" cells are skipped.
+        """
+        if self._cell_colour(cell) is not None:
+            return
+
+        inset = self.cell_size // 4
+        self._fill_rect(
+            cell[0] * self.cell_size + inset,
+            cell[1] * self.cell_size + inset,
+            self.cell_size - 2 * inset,
+            self.cell_size - 2 * inset,
+            PATH_COLOUR
+        )
+
+    def _present(self) -> None:
+        """Show the image and the help text in the window."""
+        self.mlx.mlx_put_image_to_window(
+            self.mlx_ptr,
+            self.win_ptr,
+            self.img_ptr,
+            0,
+            0
+        )
+        self.mlx.mlx_string_put(
+            self.mlx_ptr,
+            self.win_ptr,
+            10,
+            self.height_px + 20,
+            TEXT_COLOUR,
+            HELP_TEXT
+        )
+
     def draw(self) -> None:
         """Paint the maze in the image and show it in the window.
 
         Every wall is drawn once: the north and west wall of each cell, plus
         the south wall of the last row and the east wall of the last column.
         """
-        inset = self.cell_size // 4
         wall_colour = WALL_COLOURS[self.colour_index]
 
         self._fill_rect(
@@ -180,16 +256,10 @@ class Display:
                         self.cell_size,
                         fill
                     )
-                elif self.show_path and cell in self.path_cells:
-                    self._fill_rect(
-                        px + inset,
-                        py + inset,
-                        self.cell_size - 2 * inset,
-                        self.cell_size - 2 * inset,
-                        PATH_COLOUR
-                    )
+                elif self.show_path and self._path_visible(cell):
+                    self._paint_path_cell(cell)
 
-                walls = self.generator.grid[y][x]
+                walls = self.view_grid[y][x]
                 if walls & NORTH:
                     self._fill_rect(
                         px,
@@ -222,21 +292,76 @@ class Display:
                         self.cell_size,
                         wall_colour
                     )
-        self.mlx.mlx_put_image_to_window(
-            self.mlx_ptr,
-            self.win_ptr,
-            self.img_ptr,
-            0,
-            0
-        )
-        self.mlx.mlx_string_put(
-            self.mlx_ptr,
-            self.win_ptr,
-            10,
-            self.height_px + 20,
-            TEXT_COLOUR,
-            HELP_TEXT
-        )
+        self._present()
+
+    def _start_generation(self) -> None:
+        """Replay the generator steps on a closed grid."""
+        gen = self.generator
+        self.steps_per_frame = max(1, len(gen.steps) // ANIMATION_FRAMES)
+        self.view_grid = [[ALL_WALLS] * gen.width for _ in range(gen.height)]
+        self.step_index = 0
+        self.show_path = False
+        self.animation = GENERATE
+        self.draw()
+
+    def _advance_generation(self) -> None:
+        """Open the next group of walls and redraw."""
+        steps = self.generator.steps
+        stop = min(len(steps), self.step_index + self.steps_per_frame)
+
+        for (x, y), direction in steps[self.step_index:stop]:
+            dx, dy = DELTAS[direction]
+            self.view_grid[y][x] &= ~direction
+            self.view_grid[y + dy][x + dx] &= ~OPPOSITE[direction]
+
+        self.step_index = stop
+        self.draw()
+        if stop >= len(steps):
+            self.view_grid = self.generator.grid
+            self.animation = None
+            if self.path_after:
+                self.path_after = False
+                self._start_path()
+
+    def _start_path(self) -> None:
+        """Start showing the path from the entry towards the exit."""
+        self.path_per_frame = max(1, len(self.path_list) // ANIMATION_FRAMES)
+        self.path_progress = 0
+        self.show_path = True
+        self.animation = PATH
+        self.draw()
+
+    def _advance_path(self) -> None:
+        """Paint the next cells of the path, from the entry to the exit."""
+        start = self.path_progress
+        stop = min(len(self.path_list), start + self.path_per_frame)
+
+        for cell in self.path_list[start:stop]:
+            self._paint_path_cell(cell)
+
+        self.path_progress = stop
+        self._present()
+        if stop >= len(self.path_list):
+            self.animation = None
+
+    def update(self, param: object) -> None:
+        """Loop hook: advance the running animation at a fixed frame rate.
+
+        Args:
+            param: Value given to the hook, not used.
+        """
+        if self.animation is None:
+            return
+
+        now = time.monotonic()
+        if now - self.last_frame < FRAME_DELAY:
+            return
+
+        self.last_frame = now
+        if self.animation == GENERATE:
+            self._advance_generation()
+        else:
+            self._advance_path()
 
     def keyboard_input(self, key_code: int, param: object) -> None:
         """Handle a key and redraw if something changed.
@@ -248,15 +373,27 @@ class Display:
         if key_code == KEY_ESCAPE:
             self.destroy(param)
         elif key_code == KEY_R:
+            self.animation = None
+            self.path_after = self.show_path or self.path_after
             self.generator.regenerate()
+            self.view_grid = self.generator.grid
             self._update_path()
-            self.draw()
+            self._start_generation()
         elif key_code == KEY_P:
-            self.show_path = not self.show_path
-            self.draw()
+            if self.animation == GENERATE:
+                return
+            if self.show_path:
+                self.show_path = False
+                self.animation = None
+                self.draw()
+            else:
+                self._start_path()
         elif key_code == KEY_C:
             self.colour_index = (self.colour_index + 1) % len(WALL_COLOURS)
             self.draw()
+        elif key_code == KEY_A:
+            self.path_after = self.show_path or self.path_after
+            self._start_generation()
 
     def destroy(self, param: object) -> None:
         """Ask MLX to leave the event loop.
@@ -272,6 +409,7 @@ class Display:
         """Draw the maze, wait for events and free MLX when the loop ends."""
         self.mlx.mlx_key_hook(self.win_ptr, self.keyboard_input, None)
         self.mlx.mlx_hook(self.win_ptr, EVENT_CLOSE, 0, self.destroy, None)
+        self.mlx.mlx_loop_hook(self.mlx_ptr, self.update, None)
 
         self.draw()
         self.mlx.mlx_loop(self.mlx_ptr)

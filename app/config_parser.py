@@ -8,7 +8,7 @@ from typing import Final
 REQUIRED_KEYS: Final = frozenset(
     {"WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"}
 )
-DEFAULT_ALGORTIHM: Final = "backtracker"
+DEFAULT_ALGORITHM: Final = "backtracker"
 ALLOWED_KEYS: Final = REQUIRED_KEYS | {"SEED", "ALGORITHM"}
 TRUE_VALUES: Final = frozenset({"true", "yes", "1"})
 FALSE_VALUES: Final = frozenset({"false", "no", "0"})
@@ -176,7 +176,7 @@ def cast_config(config: dict[str, str]) -> MazeConfig:
     perfect = parse_bool("PERFECT", config["PERFECT"])
     output_file = config["OUTPUT_FILE"]
     seed = parse_int("SEED", config["SEED"]) if "SEED" in config else None
-    algorithm = config.get("ALGORITHM", DEFAULT_ALGORTIHM).lower()
+    algorithm = config.get("ALGORITHM", DEFAULT_ALGORITHM).lower()
 
     if not output_file:
         raise ConfigError("OUTPUT_FILE cannot be empty")

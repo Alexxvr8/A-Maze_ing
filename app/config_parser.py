@@ -8,7 +8,8 @@ from typing import Final
 REQUIRED_KEYS: Final = frozenset(
     {"WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"}
 )
-ALLOWED_KEYS: Final = REQUIRED_KEYS | {"SEED"}
+DEFAULT_ALGORTIHM: Final = "backtracker"
+ALLOWED_KEYS: Final = REQUIRED_KEYS | {"SEED", "ALGORITHM"}
 TRUE_VALUES: Final = frozenset({"true", "yes", "1"})
 FALSE_VALUES: Final = frozenset({"false", "no", "0"})
 
@@ -29,6 +30,8 @@ class MazeConfig:
         output_file: Path of the file where the maze is written.
         perfect: Whether the maze has a single path between cells.
         seed: Random seed, or None if the file does not set one.
+        algorithm: Algorithm name in lowercase, "backtracker" if the file
+            does not set one. MazeGenerator checks that it exists.
     """
 
     width: int
@@ -38,6 +41,7 @@ class MazeConfig:
     output_file: str
     perfect: bool
     seed: int | None
+    algorithm: str
 
 
 def read_config(path: str) -> dict[str, str]:
@@ -172,6 +176,7 @@ def cast_config(config: dict[str, str]) -> MazeConfig:
     perfect = parse_bool("PERFECT", config["PERFECT"])
     output_file = config["OUTPUT_FILE"]
     seed = parse_int("SEED", config["SEED"]) if "SEED" in config else None
+    algorithm = config.get("ALGORITHM", DEFAULT_ALGORTIHM).lower()
 
     if not output_file:
         raise ConfigError("OUTPUT_FILE cannot be empty")
@@ -184,6 +189,7 @@ def cast_config(config: dict[str, str]) -> MazeConfig:
         output_file,
         perfect,
         seed,
+        algorithm
     )
 
 

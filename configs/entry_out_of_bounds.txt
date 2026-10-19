@@ -1,8 +1,8 @@
-# Valid format, invalid value: EXIT is outside the maze (MazeGenerator rejects it)
+# Valid format, invalid value: ENTRY is outside the maze (MazeGenerator rejects it)
 
 WIDTH=20
 HEIGHT=15
-ENTRY=0,0
-EXIT=99,99
+ENTRY=99,99
+EXIT=19,14
 OUTPUT_FILE=maze.txt
 PERFECT=True

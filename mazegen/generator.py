@@ -200,6 +200,26 @@ class MazeGenerator:
         self._open_wall(cell, direction)
         self.steps.append((cell, direction))
 
+    def _forget_step(self, cell: tuple[int, int], direction: int) -> None:
+        """Remove a wall from self.steps, whichever side recorded it.
+
+        The same wall can be stored as (cell, direction) or as
+        (neighbour, opposite direction), so both forms are checked.
+
+        Args:
+            cell: Cell as (x, y).
+            direction: Wall to remove, one of the direction bits.
+        """
+        x, y = cell
+        dx, dy = DELTAS[direction]
+        nx = x + dx
+        ny = y + dy
+
+        for pair in ((cell, direction), ((nx, ny), OPPOSITE[direction])):
+            if pair in self.steps:
+                self.steps.remove(pair)
+                return
+
     def _count_walls(self, cell: tuple[int, int]) -> int:
         """Return how many of the four walls of a cell are closed.
 
@@ -452,6 +472,56 @@ class MazeGenerator:
                     return True
         return False
 
+    def _compensate(self, cell: tuple[int, int], direction: int) -> bool:
+        """Close another wall of the 3x3 open area a new opening created.
+
+        The wall (cell, direction) is already open and has left a 3x3 block
+        with no inner walls. Each inner wall of that block, except the new
+        one, is closed in turn and kept closed if both of its cells still
+        have at least two exits and no 3x3 open area is left around the
+        new opening. The closed wall is also removed from self.steps.
+
+        Args:
+            cell: Cell as (x, y) of the wall that was just opened.
+            direction: Direction of the wall that was just opened.
+
+        Returns:
+            True if a wall was closed, False if no wall could be closed.
+        """
+        x, y = cell
+        dx, dy = DELTAS[direction]
+        nx = x + dx
+        ny = y + dy
+        other = (nx, ny)
+        new_walls = ((cell, direction), (other, OPPOSITE[direction]))
+
+        for left in range(x - 2, x + 1):
+            for top in range(y - 2, y + 1):
+                if not self._block_is_open(left, top):
+                    continue
+
+                for by in range(top, top + 3):
+                    for bx in range(left, left + 3):
+                        for d in (EAST, SOUTH):
+                            if d == EAST and bx == left + 2:
+                                continue
+                            if d == SOUTH and by == top + 2:
+                                continue
+                            if ((bx, by), d) in new_walls:
+                                continue
+                            mx, my = DELTAS[d]
+                            a = (bx, by)
+                            b = (bx + mx, by + my)
+                            self._close_wall(a, d)
+                            if (self._count_walls(a) <= 2
+                                    and self._count_walls(b) <= 2
+                                    and not self._touches_open_block(cell)
+                                    and not self._touches_open_block(other)):
+                                self._forget_step(a, d)
+                                return True
+                            self._open_wall(a, d)
+        return False
+
     def _remove_dead_end(
         self, cell: tuple[int, int], rng: random.Random
     ) -> None:
@@ -460,6 +530,9 @@ class MazeGenerator:
         Neighbours that are dead ends too are tried first, so one opening
         can fix two dead ends. A wall that would create a 3x3 open area is
         closed again and the next option is tried.
+        If every option would create a 3x3 open area, each one is opened
+        again and _compensate closes another wall of that area, so the dead
+        end can still be removed.
 
         Args:
             cell: Dead-end cell as (x, y).
@@ -482,6 +555,13 @@ class MazeGenerator:
                 continue
             self.steps.append((cell, direction))
             return
+
+        for direction, _ in options:
+            self._open_wall(cell, direction)
+            if self._compensate(cell, direction):
+                self.steps.append((cell, direction))
+                return
+            self._close_wall(cell, direction)
 
     def _braid(self, rng: random.Random) -> None:
         """Remove dead ends to add loops for the non-perfect mode.

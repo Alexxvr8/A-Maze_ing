@@ -11,8 +11,15 @@ mypy = "*"
 build = "*"
 pytest = "*"
 
+[tool.poetry.group.display.dependencies]
+mlx = { path = "vendor/mlx-2.2-py3-none-any.whl", markers = "sys_platform == 'linux'" }
+
 [tool.mypy]
 exclude = '^(\.?venv|build|dist|.*\.egg-info)/'
+
+[[tool.mypy.overrides]]
+module = ["mlx", "mlx.*"]
+ignore_missing_imports = true
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]

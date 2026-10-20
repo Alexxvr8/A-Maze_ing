@@ -4,8 +4,8 @@
 > **antes** de programar sobre ella. Si algo del contrato (sección 2) cambia,
 > se habla entre los dos y se actualiza aquí primero.
 >
-> Al final del proyecto, parte de este contenido pasa al README
-> (algoritmo y por qué, formato del config, gestión del equipo, planificación).
+> El README recoge la versión pública (algoritmos y por qué, formato del
+> config, gestión del equipo, planificación). Este archivo es el detalle.
 
 **Equipo:** alvicent (Ale, GitHub `Alexxvr8`) · joserome (GitHub `Joositoo`)
 **Inicio:** 2026-10-07
@@ -13,59 +13,51 @@
 
 ---
 
-## 0. Estado del repo (última revisión: 2026-10-16, 04:00)
+## 0. Estado del repo (última revisión: 2026-10-20) ✅ TERMINADO
 
-**En `main` ahora mismo** (tras el PR #17; Kruskal en el PR de `feat/kruskal`):
+**Avance: 100 %.** Parte obligatoria y los 3 bonus hechos, probado en el
+campus y `.whl` final generado. Solo queda entregar en vogsphere y preparar
+la defensa (sección 4).
 
 | Archivo | Estado | De quién |
 |:--|:--|:--|
-| `mazegen/directions.py` | ✅ Terminado | Ale |
-| `mazegen/pattern42.py` | ✅ Terminado | Ale |
-| `mazegen/generator.py` | ✅ Backtracker + Kruskal + Pac-Man (trenzado, ≥ 2 bucles, mínimo 3×3) | Ale |
+| `mazegen/directions.py` | ✅ | Ale |
+| `mazegen/pattern42.py` | ✅ | Ale |
+| `mazegen/generator.py` | ✅ Backtracker + Kruskal + Pac-Man (trenzado, ≥ 2 bucles, 0 callejones, mínimo 3×3) + `steps` | Ale |
 | `mazegen/solver.py` | ✅ `shortest_path()` con BFS | joserome |
 | `mazegen/__init__.py` | ✅ API pública con `__all__` | Ale |
-| `app/config_parser.py` | ✅ `parse_config()` según contrato | joserome (ajustado por Ale) |
-| `app/writer.py` | ✅ Formato del subject (validado con `maze_analyzer.py`) | joserome |
-| `app/display.py` | 🟡 MLX hecho: muros, entrada, salida, 42, camino, teclas R/P/C/ESC. **Rompe el lint** y aún sin probar en pantalla | joserome |
-| `configs/` | ✅ 12 configs con errores | joserome |
-| `tests/test_generator.py` | ✅ 165 tests (los dos algoritmos × perfecto y Pac-Man) | Ale |
-| `a_maze_ing.py` | ⬜ Solo shebang + docstring → **S1, juntos, lo más urgente** | ambos |
+| `mazegen/README.md` + `py.typed` | ✅ Documentación del paquete | Ale |
+| `app/config_parser.py` | ✅ Con `ALGORITHM` | joserome (ajustado por Ale) |
+| `app/writer.py` | ✅ | joserome |
+| `app/display.py` | ✅ R/P/C/A/ESC, animación de generación y de camino | joserome (franja de ayuda: Ale) |
+| `a_maze_ing.py` | ✅ Captura todos los errores, avisa sin 42, muestra la semilla | joserome |
+| `configs/` | ✅ 15 configs, uno por cada error | joserome |
+| `tests/test_generator.py` | ✅ 221 tests | Ale |
+| `vendor/mlx-2.2-py3-none-any.whl` | ✅ MiniLibX de Ubuntu | Ale |
+| `pyproject.toml`, `poetry.lock` | ✅ Grupo `display` con MLX, override de mypy, metadatos | Ale |
+| `LICENSE.md` | ✅ MIT | Ale |
+| `README.md` | ✅ Completo | Ale (MLX y controles: joserome) |
+| `mazegen-0.1.0-py3-none-any.whl` | ✅ Generado desde `main` con el código final | Ale |
 
 **Calidad en `main`:**
-- pytest: ✅ 165 passed
-- `make lint`: ❌ **falla por `app/display.py`** (2 de flake8 + 1 de mypy, ver
-  sección 4, paso 1)
-- `make lint-strict`: ❌ además `Cannot find module "mlx"`
+- pytest: ✅ 221 passed
+- `make lint`: ✅
+- `make lint-strict`: ✅
 
-### Comprobado el 2026-10-15 con `maze_analyzer.py`
+### Comprobado el 2026-10-20
 
-240 laberintos (20×15, 9×7, 21×15, 10×10, 40×30, 5×5 · 2 modos · 20
-semillas), generados con generador + solver + writer:
-- `PERFECT=True` → 120/120 *"PERFECT maze: a single path, no loop"*.
-- `PERFECT=False` con `--max-dead-ends 0` → 120/120 *"Pac-Man-USABLE … no
-  real dead-end → bonus-grade (perfectly braided)"*.
-- Muros coherentes, nada inalcanzable, esquinas y centro alcanzables.
-- Los 3 callejones que deja el dibujo del 42 (huecos del "4" y del "2") el
-  analizador los cuenta como **"enclosed by the '42' (tolerated)"** → **no hay
-  que rediseñar el 42.**
-
-### ✅ Fallo resuelto el 2026-10-16 (A10, PR #17)
-
-En laberintos **pequeños** el modo Pac-Man a veces queda con **0 callejones
-pero 1 solo bucle** (un anillo), y el subject pide al menos 2.
-
-| Tamaño | Semillas que fallan (de 300) |
-|:--|:--|
-| 3×4 / 4×3 / 4×4 | 33 / 18 / 13 |
-| 5×4, 6×4, 4×5, 6×6… | 1–4 |
-| 7×7 o mayor (incl. 20×15) | 0 (salvo algún caso suelto en 8×4) |
-
-Causa: el trenzado solo quita callejones, no garantiza bucles. Los tests no lo
-vieron porque `test_pacman_has_loops` solo prueba 20×15.
-
-**Solución:** `_ensure_loops()` abre muros extra (sin zonas 3×3) hasta tener
-2 bucles, y `PERFECT=False` exige mínimo 3×3. Comprobado con 20 000
-laberintos de 3×3 a 12×12: 0 fallos. Los laberintos de 20×15 no cambian.
+- **Prueba en un ordenador del campus** (joserome): clon limpio →
+  `make install` → `make run`, todas las teclas, tamaños grandes y pequeños
+  y los `configs/` de error. ✅
+- **`a_maze_ing.py` de punta a punta:** todos los configs de error dan
+  mensaje claro y código 1, sin traceback. Sin MLX instalada:
+  `No module named 'mlx'`, sin traceback.
+- **`maze_analyzer.py`** sobre la salida de `a_maze_ing.py`, 2 modos × 2
+  algoritmos × 4 tamaños (20×15, 3×3, 9×7, 50×40):
+  - `PERFECT=True` → 8/8 *"PERFECT maze"*.
+  - `PERFECT=False` con `--max-dead-ends 0` → 8/8 *"Pac-Man-USABLE"*.
+- **El `.whl` se instala** en un venv limpio y funciona con el ejemplo del
+  README.
 
 ### Historial de incidentes
 
@@ -74,8 +66,16 @@ laberintos de 3×3 a 12×12: 0 fallos. Los laberintos de 20×15 no cambian.
 - **2026-10-09:** PR #4 entró con lint en rojo (`pattern42` a medias).
   Resuelto en PR #6.
 - **2026-10-09 y 12:** dos commits de Ale directos a `main` sin PR.
-- **2026-10-16:** PR #15 (MLX) entró con `make lint` en rojo. Se arregla en
-  el paso 1 de joserome.
+- **2026-10-16:** PR #15 (MLX) entró con `make lint` en rojo. Arreglado en
+  el PR #21.
+- **2026-10-16:** el modo Pac-Man dejaba 1 solo bucle en tamaños pequeños.
+  Resuelto con A10 (PR #17).
+- **2026-10-19 y 20:** dos commits de joserome directos a `main` sin PR
+  (`variable fixed` y `Fixed errors`).
+- **2026-10-20:** el arreglo de la franja de ayuda del display se coló en
+  el commit de MLX (PR #23). Funciona, pero el commit mezcla dos cosas.
+- **2026-10-20:** el primer `.whl` se generó en una rama sacada antes de
+  mergear A13, así que no llevaba el arreglo. Regenerado desde `main`.
 
 ---
 
@@ -90,18 +90,23 @@ laberintos de 3×3 a 12×12: 0 fallos. Los laberintos de 20×15 no cambian.
    git status          ← debe decir "On branch <tu rama>"
    ```
 3. **Una rama por meta**, corta. Tipos: `feat/` (algo nuevo), `fix/`
-   (arreglo), `docs/` (documentación), `test/` (tests).
+   (arreglo), `docs/` (documentación), `test/` (tests), `build/`
+   (dependencias y empaquetado).
 4. **Antes de cada push y de cada merge:** `make lint` y los tests en verde.
    **Sin excepciones.**
 5. **Mensajes de commit:** `<tipo>(<área>): <qué>` y que describan **ese**
    commit. Ej.: `feat(mazegen): braided Pac-Man mode for PERFECT=False`.
-6. **PR → merge con los dos delante.** Trabajamos juntos en persona, así que el
+6. **Un commit, una cosa.** `git status` antes de `git add`, y añadir los
+   archivos por nombre.
+7. **PR → merge con los dos delante.** Trabajamos juntos en persona, así que el
    merge lo hace uno con el otro al lado revisándolo (no hace falta proteger
    `main` en GitHub).
-7. **Después del merge:** borrar la rama (botón "Delete branch" en GitHub, y
+8. **Después del merge:** borrar la rama (botón "Delete branch" en GitHub, y
    `git branch -d <rama>` en local).
-8. **Si `git push` falla con `rejected`:** NO usar `--force`. Avisar al otro.
-9. **Si cambia `poetry.lock`** (alguien añadió una dependencia): `make install`.
+9. **Si `git push` falla con `rejected`:** NO usar `--force`. Avisar al otro.
+10. **Si cambia `poetry.lock`** (alguien añadió una dependencia): `make install`.
+11. **Si cambia algo de `mazegen/`:** regenerar el `.whl` de la raíz
+    (sección 6, B9). Siempre desde `main` actualizado.
 
 ---
 
@@ -136,28 +141,29 @@ MazeGenerator(width: int, height: int,
               algorithm: str = "backtracker")
 ```
 
-| Miembro | Tipo | Qué es | Estado |
-|:--|:--|:--|:--|
-| `__init__` | — | Valida y guarda. **No genera.** Lanza `MazeGeneratorError` si algo es inválido | ✅ |
-| `generate()` | `-> None` | Construye con `self.seed`: perfecto con el algoritmo elegido y, si `perfect` es `False`, trenzado (0 callejones reales, ≥ 2 bucles, sin zonas 3×3) | ✅ |
-| `algorithm` | `str` | `"backtracker"` o `"kruskal"` (constante `ALGORITHMS`). Otro valor → `MazeGeneratorError` | ✅ |
-| `regenerate()` | `-> None` | Semilla nueva + `generate()` | ✅ |
-| `grid` | `list[list[int]]` | `grid[y][x]` con bits N1 E2 S4 W8. Vacía hasta `generate()` | ✅ |
-| `seed` | `int` | Semilla usada. Nunca `None` | ✅ |
-| `pattern_cells` | `set[tuple[int, int]]` | Celdas del 42. **Vacío si no cabe** | ✅ |
-| `steps` | `list[tuple[tuple[int, int], int]]` | Muros abiertos durante `generate()`, en orden: `(celda, dirección)`. Para la animación | ⏳ A12 |
-| `width`, `height`, `entry`, `exit`, `perfect` | — | Los parámetros, públicos | ✅ |
-| `MazeGeneratorError` | `ValueError` | Excepción del paquete | ✅ |
+| Miembro | Tipo | Qué es |
+|:--|:--|:--|
+| `__init__` | — | Valida y guarda. **No genera.** Lanza `MazeGeneratorError` si algo es inválido |
+| `generate()` | `-> None` | Construye con `self.seed`: perfecto con el algoritmo elegido y, si `perfect` es `False`, trenzado (0 callejones fuera del 42, ≥ 2 bucles, sin zonas 3×3) |
+| `regenerate()` | `-> None` | Semilla nueva + `generate()` |
+| `algorithm` | `str` | `"backtracker"` o `"kruskal"` (constante `ALGORITHMS`). Otro valor → `MazeGeneratorError` |
+| `grid` | `list[list[int]]` | `grid[y][x]` con bits N1 E2 S4 W8. Vacía hasta `generate()` |
+| `seed` | `int` | Semilla usada. Nunca `None` |
+| `pattern_cells` | `set[tuple[int, int]]` | Celdas del 42. **Vacío si no cabe** |
+| `steps` | `list[tuple[tuple[int, int], int]]` | Muros que acaban abiertos, en el orden en que se abrieron: `(celda, dirección)` |
+| `width`, `height`, `entry`, `exit`, `perfect` | — | Los parámetros, públicos |
+| `MazeGeneratorError` | `ValueError` | Excepción del paquete |
 
-**Contrato de la animación (decidido 2026-10-16):**
+**Contrato de la animación ✅:**
 - El generador **no sabe nada de MLX**. Solo rellena `self.steps` durante
   `generate()` (se vacía al principio de cada `generate()`).
-- Cada paso es un muro que se abre y **se queda abierto**: los intentos que el
-  trenzado deshace (`_close_wall`) **no** se guardan.
-- Vale igual para backtracker, Kruskal y trenzado.
-- El display "reproduce" la lista: parte de la rejilla con todos los muros
-  cerrados y abre unos cuantos pasos por fotograma con `mlx_loop_hook`.
-- Se lanza con la **tecla `A`**.
+- Cada paso es un muro que se abre y **se queda abierto**: los intentos que
+  se deshacen no se guardan, y si un muro se cierra para compensar (A13)
+  se borra de la lista con `_forget_step`.
+- Reproducir `steps` sobre una rejilla cerrada da exactamente `grid`
+  (comprobado por tests, también en tamaños pequeños).
+- El display los reproduce con `mlx_loop_hook`, unos cuantos por fotograma
+  (unos 4 s en total). Tecla **`A`**.
 
 ### 2.2 Lo que joserome entrega a Ale (y a `a_maze_ing.py`)
 
@@ -175,7 +181,7 @@ class MazeConfig:
     output_file: str
     perfect: bool
     seed: int | None
-    algorithm: str          ← PENDIENTE (paso 5 de joserome)
+    algorithm: str
 
 def parse_config(path: str) -> MazeConfig: ...
 ```
@@ -186,13 +192,10 @@ def parse_config(path: str) -> MazeConfig: ...
 - Valida **solo el formato**: lectura, claves obligatorias / duplicadas /
   desconocidas / vacías, tipos y `OUTPUT_FILE` no vacío.
 - **No valida valores** (tamaño, límites, entrada ≠ salida, 42, tamaño mínimo
-  del Pac-Man): eso lo hace **solo** el generador.
+  del Pac-Man, algoritmo): eso lo hace **solo** el generador.
 - `exit_` en el parser, `exit` en el generador; se mapea en `a_maze_ing.py`.
-- **`ALGORITHM`** (corregido 2026-10-16): opcional. El parser la lee, la
-  pasa a minúscula y, si falta, pone `"backtracker"`. **No** comprueba si el
-  algoritmo existe: eso lo hace **solo el generador** (`MazeGeneratorError`),
-  que es quien tiene la lista `ALGORITHMS`. Misma regla que con `ENTRY`:
-  formato en el parser, valores en el generador.
+- **`ALGORITHM`**: opcional. El parser la lee, la pasa a minúscula y, si
+  falta, pone `"backtracker"` (`DEFAULT_ALGORITHM`).
 
 **`mazegen/solver.py`:** `shortest_path(grid, entry, exit) -> str`. BFS con
 `deque`, devuelve letras (`"ESSEN"`), `ValueError` si no hay camino. No
@@ -203,20 +206,25 @@ Formato exacto del subject, hex en minúscula, `\n` en cada línea. Deja salir
 el `OSError`.
 
 **`app/display.py`:** clase `Display`.
-- **Decidido 2026-10-16:** recibe el `MazeGenerator` **ya generado**; su
-  `__init__` **no** llama a `generate()`.
-- `run()` abre la ventana y bucle de eventos. Teclas: `R` regenera, `P`
-  camino, `C` color de muros, `A` animación (pendiente), `ESC`/X salir.
+- Recibe el `MazeGenerator` **ya generado**; su `__init__` no genera.
+- `run()` abre la ventana y el bucle de eventos. Teclas: `R` regenera
+  (animado), `P` camino (animado), `C` color de muros, `A` repite la
+  animación, `ESC`/X salir.
+- La imagen ocupa toda la ventana, incluida la franja de ayuda, para que el
+  texto se borre en cada fotograma.
 
-### 2.3 `a_maze_ing.py` (juntos, S1)
+### 2.3 `a_maze_ing.py` ✅
 
-`sys.argv` → `parse_config` → `MazeGenerator(..., exit=config.exit_,
-algorithm=config.algorithm)` → `generate()` → `shortest_path` →
-`write_maze` → `Display(generator).run()`.
-- Captura `ConfigError`, `MazeGeneratorError` y `OSError` (incluido
-  `OUTPUT_FILE` no escribible) y los muestra **sin traceback**.
-- Si `pattern_cells` está vacío, avisa por consola (lo pide el subject).
-- Si la semilla no venía en el config, la muestra.
+`sys.argv` → `parse_config` → `MazeGenerator(..., algorithm=...)` →
+`generate()` → aviso si no hay 42 → semilla si no venía en el config →
+`shortest_path` → `write_maze` → `Display(generator).run()`.
+- Con un número de argumentos distinto de 1: `Usage` y código 1.
+- Captura `ConfigError`, `MazeGeneratorError`, `ValueError`, `OSError`,
+  `RuntimeError` e `ImportError`, y aparte `KeyboardInterrupt`. Mensaje por
+  `stderr`, código 1, nunca traceback.
+- `from app.display import Display` va **dentro** del `try`: así, si MLX no
+  está instalada, el error se captura como los demás.
+- Escribe el archivo **antes** de abrir la ventana.
 
 ---
 
@@ -226,69 +234,61 @@ algorithm=config.algorithm)` → `generate()` → `shortest_path` →
 |:--|:--|:--|
 | **A — Motor** (`mazegen/` menos el solver) | **alvicent** | `directions`, `generator`, `pattern42`, backtracker, Pac-Man, Kruskal, pasos de animación, tests del motor |
 | **B — Consumo** | **joserome** | `config_parser`, `configs/`, `solver`, `writer`, display MLX + interacción + animación en pantalla |
-| Juntos | ambos | `a_maze_ing.py`, empaquetado, LICENSE, README, ensayo de defensa |
+| Compartido → **alvicent** | | Instalación de MLX, LICENSE, metadatos y `.whl` del paquete, README del paquete y README principal, NOTES |
+| Compartido → **joserome** | | `a_maze_ing.py`, revisar la parte de MLX y controles del README |
+| Juntos | ambos | Prueba final en el campus y ensayo de la defensa |
+
+El reparto de lo compartido se decidió el 2026-10-18 según lo que le quedaba
+a cada uno: la línea A estaba casi terminada.
 
 En la defensa **los dos** tienen que saber explicar todo.
 
 ---
 
-## 4. Próximas sesiones — joserome (línea B)
+## 4. Entrega y defensa
 
-### Paso 1 — Dejar `main` en verde 🔴 (rama `fix/display-lint`)
+### Hecho ✅
 
-- `app/display.py:56` W293: línea en blanco con espacios.
-- `app/display.py:118` E125: sangría de la firma de `_fill_rect`.
-- mypy: `to_bytes(..., self.byte_order)` → anotar `byte_order` como
-  `Literal["little", "big"]`.
-- Docstring de la clase `Display`.
+- [x] `.whl` final regenerado desde `main` (Ale)
+- [x] Prueba completa en un ordenador del campus (joserome)
+- [x] `configs/entry_in_42.txt` (joserome)
+- [x] Sección de MLX y controles del README revisada (joserome)
+- [x] Retoques del README y salto de línea final en todos los archivos (Ale)
 
-### Paso 2 — Instalar MLX como las demás librerías (rama `feat/mlx-install`)
+### Opcional (no hace falta para entregar)
 
-- **Decidido 2026-10-16:** MLX se instala con Poetry, igual que el resto
-  (`make install` → `poetry install`).
-- ⚠️ **Trampa:** `mlx` en PyPI es **otra librería** (la de Apple para IA).
-  Hay que apuntar al `.whl` de MiniLibX de la intra, como dependencia por
-  **ruta** (`path = "..."`), guardando el `.whl` en el repo (p. ej. `vendor/`).
-- Va en un **grupo de Poetry** (p. ej. `display`), **no** en
-  `[project] dependencies`: `mazegen` tiene que poder reutilizarse sin MLX.
-- `mypy --strict`: si sigue sin encontrar tipos de `mlx`, añadir en
-  `pyproject.toml` un `[[tool.mypy.overrides]]` con `module = "mlx"` e
-  `ignore_missing_imports = true` (sin comentarios `#` en el código).
-- Documentarlo en el README.
-
-### Paso 3 — `Display` recibe el laberinto ya generado
-
-Quitar el `generator.generate()` del `__init__` (lo hace `a_maze_ing.py`).
-
-### Paso 4 — Probar en un ordenador del campus
-
-En cuanto exista `a_maze_ing.py`: ventana, teclas, tamaños grandes y
-pequeños.
-
-### Paso 5 — Clave `ALGORITHM` en el parser
-
-Según el contrato (sección 2.2): leer, `.strip().lower()`, defecto
-`"backtracker"`. Sin lista ni error propio. Añadir
-`configs/algorithm_invalid.txt` (`ALGORITHM=prim`), que debe dar
-**`MazeGeneratorError`** (como `width_negative.txt`), no `ConfigError`.
-
-### Paso 6 — Bonus: animación en pantalla (tecla `A`)
-
-Cuando Ale tenga `steps` (A12): reproducirlos con `mlx_loop_hook`.
-
-### Retoques menores
-
-- [ ] `configs/entry_out_of_bounds.txt` rompe la **salida**: renombrar o
-      romper la `ENTRY`.
-- [ ] `configs/entry_in_42.txt` (estaba en la lista y no existe).
-- [ ] `writer.py`: `format(n, "x")` en vez del `match` (opcional).
+- [ ] `writer.py`: `format(n, "x")` en vez del `match`.
 - [ ] `solver.py`: quitar el punto final del mensaje y los paréntesis de
       `(dx, dy)`.
-- [ ] (Opcional) Tecla para cambiar el color del 42.
+- [ ] Display: que `P` durante la animación de generación quede apuntada
+      (`path_after = True`) en vez de ignorarse.
+- [ ] `a_maze_ing.py`: prefijo `Error: ` en los mensajes.
+- [ ] Tecla para cambiar el color del 42.
+
+Si se hace alguno después de entregar en vogsphere, hay que volver a subirlo
+(y si toca `mazegen/`, regenerar el `.whl`).
+
+### Entrega
+
+- [ ] Subir a vogsphere desde `main` (solo cuenta lo que hay en el repo de
+      la intra). Comprobar antes los nombres: `a_maze_ing.py`,
+      `config.txt`, `Makefile`, `README.md`, `LICENSE.md`,
+      `mazegen-0.1.0-py3-none-any.whl`, `.gitignore`.
+
+### Preparación de la defensa (los dos)
+
+- [ ] Construir el paquete en un venv nuevo: `python3 -m venv venv`,
+      `pip install build`, `python -m build`.
+- [ ] Instalar el `.whl` en otro venv y usarlo con el ejemplo del README.
+- [ ] Pasar `maze_analyzer.py` delante del evaluador: `PERFECT=True` y
+      `PERFECT=False --max-dead-ends 0`.
+- [ ] Que cada uno explique la parte del otro.
+- [ ] Practicar una modificación pequeña en vivo: cambiar un color, añadir
+      una tecla, cambiar el tamaño mínimo del 42, añadir una clave al config.
 
 ---
 
-## 5. Próximas sesiones — Ale (línea A)
+## 5. Línea A (Ale) ✅
 
 - [x] **A1–A6** motor perfecto (directions, validaciones, muros, 42,
       backtracker, semilla)
@@ -296,17 +296,19 @@ Cuando Ale tenga `steps` (A12): reproducirlos con `mlx_loop_hook`.
 - [x] **A8** modo Pac-Man (trenzado sin zonas 3×3)
 - [x] **A9** backtracker en su propio método `_backtracker(rng)`
 - [x] Tests del Pac-Man (conectividad, bucles, callejones, 3×3, esquinas y
-      centro, semilla) → 76 tests
-- [x] Validado con `maze_analyzer.py` → bonus de 0 callejones ✅
-- [x] **A10** Pac-Man con ≥ 2 bucles (`_ensure_loops`) y mínimo 3×3, con
-      tests de tamaños pequeños (PR #17)
+      centro, semilla)
+- [x] **A10** Pac-Man con ≥ 2 bucles (`_ensure_loops`) y mínimo 3×3 (PR #17)
 - [x] Refactor: métodos agrupados en bloques con separadores y
-      `_closed_inner_walls()` compartida por Kruskal y `_ensure_loops`
-- [x] **A11** Bonus: **Kruskal** con union-find + parámetro `algorithm`;
-      todos los tests con los dos algoritmos → 165 tests (`feat/kruskal`)
-- [ ] **A12** Bonus: `self.steps` para la animación (contrato en 2.1) 👈
-      **siguiente**
-- [ ] README: algoritmo y por qué, modo Pac-Man, "Reusable code".
+      `_closed_inner_walls()` compartida
+- [x] **A11** Bonus: **Kruskal** con union-find + parámetro `algorithm`
+      (PR #18)
+- [x] **A12** Bonus: `self.steps` para la animación (PR #20)
+- [x] Instalación de MLX con Poetry (PR #23)
+- [x] LICENSE, metadatos, `py.typed` y README del paquete (PR #24)
+- [x] README principal (PR #26)
+- [x] **A13** Bonus completo: 0 callejones también en tamaños pequeños con
+      Kruskal (`_compensate` + `_forget_step`, PR #27)
+- [x] `.whl` final (PR del 2026-10-20)
 
 ---
 
@@ -336,15 +338,7 @@ y=1  (0,1) (1,1) (2,1)
 - **Perfecto — backtracker (DFS) con pila explícita**, no recursión (límite
   de ~1000 llamadas de Python). Por qué: el más fácil de explicar, pasillos
   largos, sin límite de tamaño.
-- **Pac-Man — trenzado (braiding):** se parte del perfecto con la misma
-  semilla y el mismo `rng`; se recorren las celdas en orden aleatorio y cada
-  callejón abre un muro (prioridad: vecinas que también son callejón).
-  "Probar y deshacer": si al abrir se forma una zona 3×3 abierta, se vuelve a
-  cerrar y se prueba otra opción.
-  - Resultado: 0 callejones reales; solo quedan los 3 huecos del 42, que el
-    analizador tolera como "enclosed".
-  - Pendiente A10: garantizar ≥ 2 bucles en tamaños pequeños.
-- **Bonus — Kruskal** ✅: cada celda fuera del 42 empieza siendo su propia
+- **Bonus — Kruskal:** cada celda fuera del 42 empieza siendo su propia
   "isla"; se recorren los muros interiores en orden aleatorio y se abre uno
   solo si une dos islas distintas (union-find con un diccionario `parent`;
   se unen los **jefes**, no las celdas). No usa `entry`: la conectividad la
@@ -352,11 +346,26 @@ y=1  (0,1) (1,1) (2,1)
   - `_find` con `while` (no recursión) y **acortando el camino**
     (`parent[cell] = parent[parent[cell]]`): 200×200 pasó de 11 s a 0,3 s.
   - Contraste: con la semilla 42 en 20×15, el backtracker deja 32
-    callejones y Kruskal 87 (pasillos cortos y muchos cruces frente a
-    pasillos largos).
+    callejones y Kruskal 87.
+- **Pac-Man — trenzado (braiding):** se parte del perfecto con la misma
+  semilla y el mismo `rng`; se recorren las celdas en orden aleatorio y cada
+  callejón abre un muro (prioridad: vecinas que también son callejón).
+  "Probar y deshacer": si al abrir se forma una zona 3×3 abierta, se vuelve a
+  cerrar y se prueba otra opción.
+- **Pac-Man — "abrir y compensar" (A13):** si todas las opciones de un
+  callejón crean un 3×3 abierto (pasaba con Kruskal en tamaños con un lado
+  de 3 a 7), se abre igualmente y `_compensate` cierra **otro** muro de ese
+  bloque cuyas dos celdas sigan con ≥ 2 salidas. Se mantiene la
+  conectividad (un 3×3 abierto menos un muro sigue conectado), no aparecen
+  callejones nuevos y el número de bucles no baja. El muro cerrado se borra
+  de `steps` con `_forget_step` (puede estar apuntado desde cualquiera de
+  sus dos lados).
+- **Pac-Man — ≥ 2 bucles (A10):** `_ensure_loops` abre muros extra hasta
+  tener 2. Bucles = pasajes − (celdas alcanzables − 1).
+- **Resultado:** 0 callejones fuera del 42; solo quedan los 3 huecos del
+  dibujo, que el analizador tolera como "enclosed".
 - **Zonas 3×3:** en modo perfecto no pueden existir (un 2×2 abierto ya sería
-  un bucle); en Pac-Man las evita el trenzado. Comprobado por tests en los
-  dos modos.
+  un bucle); en Pac-Man las evitan el trenzado y la compensación.
 
 ### B5. Visualización ✅ MiniLibX
 
@@ -364,19 +373,20 @@ y=1  (0,1) (1,1) (2,1)
   teclado y deja el 42, la entrada, la salida y el camino mucho más claros
   que el ASCII.
 - **Interacciones:** `R` regenerar · `P` mostrar/ocultar camino · `C` rotar
-  color de muros (5) · `A` animación (bonus, pendiente) · `ESC`/X salir.
+  color de muros (5) · `A` animación · `ESC`/X salir. `R` y `P` también se
+  animan.
 - **Colores:** fondo negro, entrada verde, salida roja, camino amarillo, 42
   gris.
 - **Tamaño:** celda de 1 a 40 px, la ventana ocupa como mucho el 80 % de la
-  pantalla.
-- **Instalación:** Poetry, desde el `.whl` de la intra (sección 4, paso 2).
+  pantalla y mide al menos 440 px de ancho (para el texto de ayuda).
+- **Instalación:** ver B10.
 
 ### B6. Casos límite ✅
 
 | Caso | Decisión |
 |:--|:--|
-| Tamaño mínimo, `PERFECT=True` | 2 celdas (entrada ≠ salida). Ya lo hace el generador |
-| Tamaño mínimo, `PERFECT=False` | **3×3** → si no, `MazeGeneratorError` (A10) |
+| Tamaño mínimo, `PERFECT=True` | 2 celdas (entrada ≠ salida) |
+| Tamaño mínimo, `PERFECT=False` | **3×3** → si no, `MazeGeneratorError` |
 | Tamaño mínimo para el 42 | **9×7**. Si no cabe: se genera sin 42 y se avisa |
 | WIDTH / HEIGHT ≤ 0 | **error** (generador) |
 | ENTRY o EXIT dentro del 42 | **error** (generador) |
@@ -385,11 +395,13 @@ y=1  (0,1) (1,1) (2,1)
 | Clave obligatoria ausente / duplicada / desconocida / vacía | **error** (parser) |
 | Espacios alrededor del `=` | **se aceptan** |
 | Valores de PERFECT | `true`/`yes`/`1` · `false`/`no`/`0`, sin distinguir mayúsculas; otro = error |
-| `ALGORITHM` | `backtracker` (defecto) o `kruskal`, sin distinguir mayúsculas; otro = `MazeGeneratorError` (lo valida solo el generador) |
+| `ALGORITHM` | `backtracker` (defecto) o `kruskal`, sin distinguir mayúsculas; otro = `MazeGeneratorError` |
 | SEED ausente | aleatoria y se **muestra** |
 | `OUTPUT_FILE` vacío | **error** (parser) |
-| `OUTPUT_FILE` no escribible | **error claro, sin traceback** (`a_maze_ing.py` captura `OSError`) |
-| Config inexistente / sin argumento | error claro, sin traceback |
+| `OUTPUT_FILE` no escribible (p. ej. una carpeta) | error claro, sin traceback |
+| Config inexistente, carpeta o sin argumento | error claro, sin traceback |
+| MLX no instalada o falta una librería del sistema | error claro, sin traceback (`ImportError` / `OSError`) |
+| Ctrl+C | `Interrupted`, sin traceback |
 
 **Claves extra:** `SEED` (entero, opcional) y `ALGORITHM` (opcional).
 
@@ -398,9 +410,9 @@ y=1  (0,1) (1,1) (2,1)
 - Shebang solo en `a_maze_ing.py`
 - Docstring de módulo en todos; docstrings en inglés, **estilo Google**,
   también en clases
-- Sin comentarios `#` en los `.py`, **salvo** separadores de bloque dentro
-  de las clases: `# --- Nombre ---` hasta la columna 79 (excepción del
-  2026-10-16). Ningún otro comentario.
+- Sin comentarios `#` en los `.py`, **salvo** separadores de bloque
+  `# --- Nombre ---` hasta la columna 79: dentro de las clases y, en los
+  tests, entre grupos de tests. Ningún otro comentario.
 - Type hints en todas las firmas; Python 3.10+
 - Constantes en MAYÚSCULAS con `Final`; auxiliares internas con `_`
 - `...` para cuerpos de contrato; `pass` para bloques vacíos ejecutables
@@ -414,51 +426,76 @@ y=1  (0,1) (1,1) (2,1)
   rompería el lint). Cada uno lo guarda fuera y lo usa así:
   `python3 ~/maze_analyzer.py maze.txt --max-dead-ends 0`
 
+### B9. Paquete `mazegen` ✅
+
+- Se construye con `python -m build` (backend `poetry-core`). Solo entra
+  `mazegen/`: ni `app/`, ni tests, ni `vendor/`.
+- Metadatos en `[project]`: `readme = "mazegen/README.md"`,
+  `license = "MIT"`, `license-files = ["LICENSE.md"]`, autores.
+  `[project].dependencies` vacío.
+- `mazegen/py.typed` para que mypy use nuestros tipos en otros proyectos.
+- El `.whl` va en la **raíz** (lo pide el subject) y tiene que
+  corresponder al código final. Para regenerarlo:
+  ```
+  git switch main && git pull
+  poetry run python -m build
+  cp dist/mazegen-0.1.0-py3-none-any.whl .
+  ```
+- Licencia **MIT**: permisiva, corta, permite reutilizar y distribuir el
+  generador con la única condición de mantener el aviso de copyright.
+
+### B10. Instalación de MiniLibX ✅
+
+- El `mlx-2.2.tgz` de la intra trae `src/` (C), `fedora/` y `ubuntu/`. Usamos
+  **`ubuntu/mlx-2.2-py3-none-any.whl`** (los ordenadores del campus son
+  Ubuntu), guardado en `vendor/` **sin cambiarle el nombre**.
+- Grupo de Poetry **`display`**, no `[project].dependencies`: `mazegen`
+  tiene que poder reutilizarse sin MLX.
+- Marcador `sys_platform == 'linux'`: el `.whl` dice `none-any`, pero solo
+  funciona en Linux con X11.
+- `[[tool.mypy.overrides]]` con `ignore_missing_imports` para `mlx`, que no
+  trae tipos → `make lint-strict` en verde.
+- Requisito del sistema en Ubuntu: `sudo apt install libxcb-keysyms1`.
+- ⚠️ `mlx` en PyPI es **otra librería** (la de Apple para IA).
+- ⚠️ Para probar desde un clon limpio, **desactivar** antes el venv
+  (`deactivate`): si no, Poetry reutiliza el entorno activado.
+
 ---
 
 ## 7. Planificación
 
-Plazo de entrega: **por decidir**.
+Plazo de entrega: **sin fecha fija**.
 
-Avance estimado (2026-10-16, por horas de trabajo, con los 3 bonus):
-
-| | Hecho | Queda (aprox.) |
+| Fase | Hecho | Notas |
 |:--|:--|:--|
-| Línea A (Ale) | ~88 % | 3–4 h (`steps`, README del algoritmo) |
-| Línea B (joserome) | ~68 % | 9–14 h (lint, MLX en Poetry, prueba en campus, `ALGORITHM`, animación) |
-| Juntos | ~25 % | 10–14 h (`a_maze_ing.py`, `.whl`, LICENSE, README, defensa) |
-| **Total** | **~66 %** | **~23–32 h** |
-
-| Fase | Real | Notas |
-|:--|:--|:--|
-| 0 — Acuerdos y entorno | 2026-10-09 | |
+| 0 — Acuerdos y entorno | 2026-10-09 | Contrato, reglas de Git, estilo, Poetry |
 | 1 — Núcleo mínimo | 2026-10-13 | Generador, parser, solver, writer y tests |
-| 2 — Modo Pac-Man | 2026-10-16 | Trenzado + ≥ 2 bucles + tests + analizador ✅ |
-| 3 — Display MLX | 2026-10-16 | Hecho, falta lint, instalación y prueba |
-| 4 — Integración (`a_maze_ing.py`) | | **Siguiente** |
-| 5 — Bonus | | 0 callejones ✅ · Kruskal ✅ · animación ⏳ |
-| 6 — Empaquetado y entrega | | |
+| 2 — Modo Pac-Man | 2026-10-16 | Trenzado + ≥ 2 bucles + tests + analizador |
+| 3 — Display MLX | 2026-10-16 | Teclas R/P/C/ESC |
+| 4 — Bonus | 2026-10-16 a 2026-10-20 | Kruskal (10-16) · animación (10-18) · 0 callejones completo (10-20) |
+| 5 — Integración (`a_maze_ing.py`) | 2026-10-20 | Más tarde de lo previsto |
+| 6 — Empaquetado y entrega | 2026-10-20 | MLX, LICENSE, `.whl`, README y prueba en el campus |
+
+**Cómo evolucionó:** las primeras fases fueron según lo previsto y acabamos
+haciendo los 3 bonus. El cambio principal fue la integración: estaba
+prevista justo después del núcleo (S1), pero fuimos mejorando cada línea por
+separado y la dejamos para el final. Hasta entonces, las pruebas del programa
+completo se hicieron con pequeños comandos de terminal.
 
 ### Puntos de sincronización
 
 - [x] **S0** — contrato y repo funcionando → nos separamos
-- [ ] **S1** — `a_maze_ing.py`: config → laberinto → archivo → ventana,
+- [x] **S1** — `a_maze_ing.py`: config → laberinto → archivo → ventana,
       `maze_analyzer.py` OK, todos los `configs/` con error claro
-- [ ] **S2** — Pac-Man con A10 ✅ + display probado en el campus
-- [ ] **S3** — paquete `.whl`, LICENSE, README, `lint-strict`, ensayo de
-      defensa
-
-### Orden recomendado para la próxima sesión
-
-1. joserome: paso 1 (lint en verde).
-2. Juntos: `a_maze_ing.py` y probarlo en el campus con la ventana.
-3. Ale: A12 (`steps`). joserome: pasos 2, 3 y 5.
+- [x] **S2** — display probado en el campus
+- [x] **S3** — `.whl` final, `lint-strict`, LICENSE y README
+- [ ] **S4** — entrega en vogsphere y defensa
 
 ### Herramientas
 
-- Git / GitHub (ramas y PRs), `<editor>`, Poetry, flake8, mypy, pytest,
-  build, pdb, MiniLibX, `maze_analyzer.py`
-- IA: `<para qué tareas y qué partes>`
+- Git / GitHub (ramas y PRs), VS Code, Poetry, flake8, mypy, pytest, build,
+  pdb, MiniLibX, `maze_analyzer.py`
+- IA (Claude): ver la sección *Use of AI* del README
 
 ---
 
@@ -518,12 +555,29 @@ Avance estimado (2026-10-16, por horas de trabajo, con los 3 bonus):
 | 2026-10-16 | `ALGORITHM` lo valida solo el generador; el parser solo lee y pasa a minúscula | ambos | Una sola lista de algoritmos; misma regla formato/valores |
 | 2026-10-16 | Kruskal con union-find, `_find` iterativo y acortando caminos | Ale | Sin límite de recursión; 200×200 en 0,3 s |
 | 2026-10-16 | `_closed_inner_walls()` compartida por Kruskal y `_ensure_loops` | Ale | La lista de muros vive en un solo sitio |
-| 2026-10-16 | Excepción a B7: separadores `# --- Bloque ---` dentro de las clases | ambos | Legibilidad de `generator.py` (~540 líneas) |
-| 2026-10-16 | Todos los tests de propiedades con los dos algoritmos (`parametrize`) | Ale | Kruskal cumple las mismas reglas; 165 tests |
+| 2026-10-16 | Excepción a B7: separadores `# --- Bloque ---` dentro de las clases | ambos | Legibilidad de `generator.py` |
+| 2026-10-16 | Todos los tests de propiedades con los dos algoritmos (`parametrize`) | Ale | Kruskal cumple las mismas reglas |
+| 2026-10-16 | Separadores `# --- Bloque ---` también en los tests | Ale | Mismo criterio de legibilidad |
+| 2026-10-18 | Animación de generación y de camino, unos 4 s fijos | joserome | Igual de rápida en cualquier tamaño |
+| 2026-10-18 | Reparto de lo compartido según lo que queda a cada uno | ambos | La línea A estaba casi terminada |
+| 2026-10-20 | `a_maze_ing.py` lo hace joserome; MLX lo instala Ale | ambos | Intercambio para avanzar en paralelo |
+| 2026-10-20 | MLX: `.whl` de Ubuntu en `vendor/`, grupo `display`, marcador Linux, override de mypy | Ale | El campus es Ubuntu; `mazegen` sin MLX; `lint-strict` en verde |
+| 2026-10-20 | La imagen del display ocupa toda la ventana | Ale | El texto de ayuda se borra en cada fotograma |
+| 2026-10-20 | Licencia MIT; metadatos y README dentro del `.whl`; `py.typed` | Ale | El subject pide código y documentación en un solo archivo |
+| 2026-10-20 | Import del display dentro del `try`; `ImportError` y `KeyboardInterrupt` capturados | joserome | Nunca traceback, ni sin MLX ni con Ctrl+C |
+| 2026-10-20 | A13: "abrir y compensar" + `_forget_step` | Ale | Bonus de 0 callejones también en tamaños pequeños con Kruskal |
+| 2026-10-20 | El `.whl` se regenera siempre lo último, desde `main` | ambos | Incidente del `.whl` sin A13 |
 
 ---
 
-## 9. Retrospectiva (rellenar al final)
+## 9. Retrospectiva
 
-- **Qué funcionó bien:**
-- **Qué mejoraríamos:**
+- **Qué funcionó bien:** casi todo. Acordar el contrato entre las dos líneas
+  en este NOTES antes de programar permitió que cada uno avanzara sin
+  bloquear al otro. Solo nos pisamos una vez (quién valida los valores, el
+  parser o el generador), y lo resolvimos dejando la regla por escrito.
+  Trabajar en persona y revisar juntos cada PR también ayudó mucho.
+- **Qué mejoraríamos:** hacer `a_maze_ing.py` mucho antes. Hasta entonces,
+  cada prueba del programa completo tuvo que hacerse con pequeños comandos
+  de terminal en vez de ejecutar el programa. También: generar el `.whl`
+  solo al final y desde `main`, y no mezclar dos cambios en un commit.

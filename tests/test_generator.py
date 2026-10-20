@@ -28,6 +28,7 @@ INVALID_PARAMS = [
 PATTERN_DEAD_ENDS = 3
 SMALL_BRAIDED_SIZES = [(3, 3), (3, 4), (4, 3), (4, 4), (5, 4), (6, 4)]
 TOO_SMALL_BRAIDED = [(2, 5), (5, 2), (1, 10)]
+NO_DEAD_END_SIZES = [(3, 3), (3, 6), (6, 3), (3, 7), (7, 3), (5, 3), (5, 7)]
 
 
 # --- Helpers -----------------------------------------------------------------
@@ -363,6 +364,18 @@ def test_pacman_small_mazes_have_loops(
 
         assert _count_passages(maze) >= (len(reached) - 1) + 2
         assert not _has_open_area(maze)
+
+
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
+@pytest.mark.parametrize("width, height", NO_DEAD_END_SIZES)
+def test_pacman_small_mazes_have_no_dead_ends(
+    width: int, height: int, algorithm: str
+) -> None:
+    """Small Pac-Man mazes end with no dead ends."""
+    for seed in range(300):
+        maze = _build(seed, width, height, perfect=False, algorithm=algorithm)
+
+        assert _count_dead_ends(maze) == 0
 
 
 # --- Algorithms --------------------------------------------------------------

@@ -1,0 +1,8 @@
+# Valid format, invalid value: ENTRY is a cell of the "42" pattern (MazeGenerator rejects it)
+
+WIDTH=20
+HEIGHT=15
+ENTRY=6,5
+EXIT=19,14
+OUTPUT_FILE=maze.txt
+PERFECT=True

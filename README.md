@@ -27,7 +27,7 @@ can be reused in other projects (see [Reusable code](#reusable-code)).
 ### Features
 
 - Two generation algorithms: **recursive backtracker** and **Kruskal**.
-- - Pac-Man mode with no dead ends at all ("braided" board).
+- Pac-Man mode with no dead ends at all ("braided" board).
 - Animated generation: watch the walls open one by one.
 - Shortest path, shown and hidden from the window, also animated.
 - Five wall colours, plus fixed colours for the entry, the exit and the

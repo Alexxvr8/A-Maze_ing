@@ -3,6 +3,13 @@ name = "mazegen"
 version = "0.1.0"
 description = "Reusable maze generator with seeded, perfect and braided modes."
 requires-python = ">=3.10"
+readme = "mazegen/README.md"
+license = "MIT"
+license-files = ["LICENSE.md"]
+authors = [
+    { name = "alvicent" },
+    { name = "joserome" },
+]
 dependencies = []
 
 [tool.poetry.group.dev.dependencies]

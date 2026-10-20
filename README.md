@@ -306,7 +306,7 @@ had to meet:
 | 2. Pac-Man mode | Braiding, at least two loops, no 3x3 areas | 2026-10-16 |
 | 3. Display | MiniLibX window with the controls | 2026-10-16 |
 | 4. Bonuses | Kruskal, no dead ends, animation | 2026-10-16 to 2026-10-18 |
-| 5. Integration | `a_maze_ing.py` joining all the parts | In progress |
+| 5. Integration | `a_maze_ing.py` joining all the parts | 2026-10-20 |
 | 6. Packaging and delivery | MiniLibX install, license, wheel, README | 2026-10-20 |
 
 How it evolved: the first phases went as planned, and we ended up doing all

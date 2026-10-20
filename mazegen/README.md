@@ -5,7 +5,7 @@ dependencies. It builds random but reproducible mazes in two modes:
 
 - **Perfect**: exactly one path between any two cells (no loops).
 - **Non-perfect (Pac-Man board)**: every cell reachable, at least two
-  independent loops, no 3x3 open area and its dead ends removed.
+  independent loops, no 3x3 open area and no dead ends outside the "42".
 
 Every maze big enough (9x7 cells or more) contains a "42" drawn with fully
 closed cells.

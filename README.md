@@ -19,8 +19,7 @@ cells. The maze can be generated in two modes:
   cells, so there are no loops at all.
 - **Pac-Man board** (`PERFECT=False`): every corridor is reachable, the four
   corners and the centre are open, there are at least two independent
-  loops so a chased player always has another way out, and the dead ends
-  are removed.
+  loops so a chased player always has another way out, and there are no dead ends outside the "42".
 
 The generation logic lives in its own installable package, `mazegen`, so it
 can be reused in other projects (see [Reusable code](#reusable-code)).
@@ -28,7 +27,7 @@ can be reused in other projects (see [Reusable code](#reusable-code)).
 ### Features
 
 - Two generation algorithms: **recursive backtracker** and **Kruskal**.
-- Pac-Man mode with its dead ends removed ("braided" board).
+- - Pac-Man mode with no dead ends at all ("braided" board).
 - Animated generation: watch the walls open one by one.
 - Shortest path, shown and hidden from the window, also animated.
 - Five wall colours, plus fixed colours for the entry, the exit and the

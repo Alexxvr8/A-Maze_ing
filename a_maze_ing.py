@@ -5,7 +5,6 @@
 import sys
 from app.config_parser import parse_config, ConfigError
 from app.writer import write_maze
-from app.display import Display
 from mazegen import MazeGenerator, MazeGeneratorError
 from mazegen.solver import shortest_path
 
@@ -59,6 +58,7 @@ def main() -> int:
             )
         )
 
+        from app.display import Display
         Display(generator).run()
         print("=== End of Program ===")
     except (
@@ -66,9 +66,13 @@ def main() -> int:
         MazeGeneratorError,
         ValueError,
         OSError,
-        RuntimeError
+        RuntimeError,
+        ImportError
     ) as e:
         print(e, file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        print("Interrupted", file=sys.stderr)
         return 1
     return 0
 

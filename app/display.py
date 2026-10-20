@@ -2,6 +2,7 @@
 
 
 import time
+import os
 from typing import Final, Literal
 from mazegen import EAST, NORTH, SOUTH, WEST
 from mazegen import MazeGenerator, shortest_path
@@ -70,6 +71,10 @@ class Display:
                 the image.
         """
         self.generator = generator
+        if not os.environ.get("DISPLAY"):
+            raise RuntimeError(
+                "No graphical display found: DISPLAY is not set."
+            )
 
         self.mlx = Mlx()
         self.mlx_ptr = self.mlx.mlx_init()

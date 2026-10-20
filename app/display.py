@@ -18,7 +18,8 @@ from mlx import Mlx
 SCREEN_RATIO: Final = 0.8
 MAX_CELL_SIZE: Final = 40
 MIN_CELL_SIZE: Final = 1
-HELP_HEIGHT: Final = 30
+HELP_HEIGHT: Final = 40
+HELP_MARGIN: Final = 12
 MIN_WINDOW_WIDTH: Final = 440
 HELP_TEXT: Final = (
     "R: new maze   P: path   C: colour   A: animate   ESC: quit"
@@ -87,17 +88,19 @@ class Display:
         self.wall_thickness = max(1, self.cell_size // 10)
         self.width_px = generator.width * self.cell_size
         self.height_px = generator.height * self.cell_size
+        self.win_width = max(self.width_px, MIN_WINDOW_WIDTH)
+        self.win_height = self.height_px + HELP_HEIGHT
 
         self.win_ptr = self.mlx.mlx_new_window(
             self.mlx_ptr,
-            max(self.width_px, MIN_WINDOW_WIDTH),
-            self.height_px + HELP_HEIGHT,
+            self.win_width,
+            self.win_height,
             "A-Maze-ing"
         )
         self.img_ptr = self.mlx.mlx_new_image(
             self.mlx_ptr,
-            self.width_px,
-            self.height_px
+            self.win_width,
+            self.win_height
         )
         if self.win_ptr is None or self.img_ptr is None:
             raise RuntimeError("MLX could not create the window or image.")
@@ -220,7 +223,7 @@ class Display:
             self.mlx_ptr,
             self.win_ptr,
             10,
-            self.height_px + 20,
+            self.height_px + HELP_MARGIN,
             TEXT_COLOUR,
             HELP_TEXT
         )
@@ -236,8 +239,8 @@ class Display:
         self._fill_rect(
             0,
             0,
-            self.width_px,
-            self.height_px,
+            self.win_width,
+            self.win_height,
             BG_COLOUR
         )
 

@@ -338,6 +338,22 @@ files = [
 ]
 
 [[package]]
+name = "mlx"
+version = "2.2"
+description = "A simple window interface library for students."
+optional = false
+python-versions = "*"
+groups = ["display"]
+markers = "sys_platform == \"linux\""
+files = [
+    {file = "mlx-2.2-py3-none-any.whl", hash = "sha256:7a1a44b50b6295f574522ba1a1e589632c6299d193dec57c951e8fdfb3337195"},
+]
+
+[package.source]
+type = "file"
+url = "vendor/mlx-2.2-py3-none-any.whl"
+
+[[package]]
 name = "mypy"
 version = "2.4.0"
 description = "Optional static typing for Python"
@@ -661,4 +677,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "fa04205e6e836070c9bcd105d6ab8054989fab7e54a518a0d5476254fb5b03b8"
+content-hash = "fb19455fb92d2771da6b16b79f4ae2f8ac4161b5e38128b41f411af1b18df9a7"

@@ -264,6 +264,7 @@ def test_small_pacman_raises(width: int, height: int) -> None:
                       exit=(width - 1, height - 1),
                       perfect=False)
 
+
 @pytest.mark.parametrize("width, height", TOO_BIG_SIZES)
 def test_too_big_raises(width: int, height: int) -> None:
     """A maze bigger than MAX_SIZE in any side raises MazeGeneratorError."""
@@ -272,6 +273,7 @@ def test_too_big_raises(width: int, height: int) -> None:
                       height=height,
                       entry=(0, 0),
                       exit=(1, 1))
+
 
 def test_unknown_algorithm_raises() -> None:
     """An algorithm name that does not exist raises MazeGeneratorError."""

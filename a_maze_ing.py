@@ -67,7 +67,8 @@ def main() -> int:
         ValueError,
         OSError,
         RuntimeError,
-        ImportError
+        ImportError,
+        MemoryError
     ) as e:
         print(e, file=sys.stderr)
         return 1

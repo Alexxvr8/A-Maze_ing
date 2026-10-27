@@ -18,6 +18,7 @@ from mazegen.pattern42 import pattern_42_cells
 ALGORITHMS: Final = ("backtracker", "kruskal")
 MIN_BRAIDED_SIZE: Final = 3
 MIN_LOOPS: Final = 2
+MAX_SIZE: Final = 1000
 
 
 class MazeGeneratorError(ValueError):
@@ -60,6 +61,12 @@ class MazeGenerator:
             raise MazeGeneratorError(
                 f"height must be positive, got {height}"
             )
+        if width > MAX_SIZE or height > MAX_SIZE:
+            raise MazeGeneratorError(
+                f"maze size must be at most {MAX_SIZE}x{MAX_SIZE}, "
+                f"got {width}x{height}"
+            )
+
         self.width = width
         self.height = height
 

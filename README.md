@@ -131,7 +131,7 @@ the top-left corner.
 
 Rules for the values:
 
-- `WIDTH` and `HEIGHT` must be positive.
+- `WIDTH` and `HEIGHT` must be between 1 and 1000.
 - `ENTRY` and `EXIT` must be inside the maze, different, and not on a cell
   of the "42".
 - The Pac-Man mode needs at least 3x3 cells.

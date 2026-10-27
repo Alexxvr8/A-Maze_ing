@@ -8,7 +8,7 @@ import pytest
 from mazegen import EAST, NORTH, SOUTH, WEST
 from mazegen import MazeGenerator, MazeGeneratorError
 from mazegen.directions import ALL_DIRECTIONS, ALL_WALLS, DELTAS, OPPOSITE
-from mazegen.generator import ALGORITHMS
+from mazegen.generator import ALGORITHMS, MAX_SIZE
 
 
 # --- Constants ---------------------------------------------------------------
@@ -29,6 +29,7 @@ PATTERN_DEAD_ENDS = 3
 SMALL_BRAIDED_SIZES = [(3, 3), (3, 4), (4, 3), (4, 4), (5, 4), (6, 4)]
 TOO_SMALL_BRAIDED = [(2, 5), (5, 2), (1, 10)]
 NO_DEAD_END_SIZES = [(3, 3), (3, 6), (6, 3), (3, 7), (7, 3), (5, 3), (5, 7)]
+TOO_BIG_SIZES = [(MAX_SIZE + 1, 15), (20, MAX_SIZE + 1)]
 
 
 # --- Helpers -----------------------------------------------------------------
@@ -263,6 +264,14 @@ def test_small_pacman_raises(width: int, height: int) -> None:
                       exit=(width - 1, height - 1),
                       perfect=False)
 
+@pytest.mark.parametrize("width, height", TOO_BIG_SIZES)
+def test_too_big_raises(width: int, height: int) -> None:
+    """A maze bigger than MAX_SIZE in any side raises MazeGeneratorError."""
+    with pytest.raises(MazeGeneratorError):
+        MazeGenerator(width=width,
+                      height=height,
+                      entry=(0, 0),
+                      exit=(1, 1))
 
 def test_unknown_algorithm_raises() -> None:
     """An algorithm name that does not exist raises MazeGeneratorError."""
